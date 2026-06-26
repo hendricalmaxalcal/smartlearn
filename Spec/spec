@@ -1,0 +1,29 @@
+src/
+├── main.jsx
+├── App.jsx
+├── index.css
+├── store/
+│   ├── index.js
+│   └── authSlice.js
+├── services/
+│   └── api.js
+├── components/
+│   ├── guards/
+│   │   └── PrivateRoute.jsx
+│   └── layout/
+│       ├── PublicLayout.jsx
+│       ├── AppLayout.jsx
+│       └── AdminLayout.jsx
+└── pages/
+    ├── public/
+    │   ├── HomePage.jsx
+    │   ├── LoginPage.jsx
+    │   ├── RegisterPage.jsx
+    │   └── PricingPage.jsx
+    ├── app/
+    │   ├── DashboardPage.jsx
+    │   └── ... (more later)
+    └── admin/
+        ├── AdminDashboard.jsx
+        ├── AdminUpload.jsx
+        └── ... (more later)
