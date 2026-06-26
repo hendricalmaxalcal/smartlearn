@@ -1,10 +1,14 @@
-
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import api from '../../services/api'
 import toast from 'react-hot-toast'
+import {
+  getGroups,
+  createGroup as fbCreateGroup,
+  joinGroup as fbJoinGroup,
+  leaveGroup as fbLeaveGroup,
+} from '../../services/firestore'
 
 export default function StudyGroupsPage() {
   const { user } = useSelector((s) => s.auth)
@@ -21,12 +25,12 @@ export default function StudyGroupsPage() {
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups', activeTab],
-    queryFn: () => api.get(`/groups?tab=${activeTab}`).then((r) => r.data),
+    queryFn: () => getGroups(activeTab, user.id),
     retry: false,
   })
 
   const createGroup = useMutation({
-    mutationFn: (data) => api.post('/groups', data),
+    mutationFn: (data) => fbCreateGroup(user.id, user.full_name, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['groups'])
       setShowCreate(false)
@@ -37,7 +41,7 @@ export default function StudyGroupsPage() {
   })
 
   const joinGroup = useMutation({
-    mutationFn: (groupId) => api.post(`/groups/${groupId}/join`),
+    mutationFn: (groupId) => fbJoinGroup(groupId, user.id),
     onSuccess: () => {
       queryClient.invalidateQueries(['groups'])
       toast.success('Joined group!')
@@ -46,7 +50,7 @@ export default function StudyGroupsPage() {
   })
 
   const leaveGroup = useMutation({
-    mutationFn: (groupId) => api.post(`/groups/${groupId}/leave`),
+    mutationFn: (groupId) => fbLeaveGroup(groupId, user.id),
     onSuccess: () => {
       queryClient.invalidateQueries(['groups'])
       toast.success('Left group')

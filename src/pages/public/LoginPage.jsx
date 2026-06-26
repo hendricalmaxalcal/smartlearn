@@ -142,26 +142,6 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Demo accounts */}
-          <div className="bg-gray-50 rounded-lg p-3 mb-4">
-            <p className="text-xs text-gray-500 font-medium mb-2">Quick demo login:</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setForm({ email: 'student@demo.com', password: 'Demo@1234' })}
-                className="flex-1 text-xs border border-gray-200 rounded-lg py-1.5 hover:bg-white transition-colors text-gray-600"
-              >
-                Student
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ email: 'admin@smartlearn.com', password: 'Admin@1234' })}
-                className="flex-1 text-xs border border-gray-200 rounded-lg py-1.5 hover:bg-white transition-colors text-gray-600"
-              >
-                Admin
-              </button>
-            </div>
-          </div>
 
           {/* Switch to register */}
           <p className="text-center text-sm text-gray-500">

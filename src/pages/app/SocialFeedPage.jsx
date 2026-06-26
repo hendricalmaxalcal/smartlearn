@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
-import api from '../../services/api'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  getPosts,
+  createPost as fbCreatePost,
+  likePost as fbLikePost,
+  addComment as fbAddComment,
+  getComments,
+} from '../../services/firestore'
 
 export default function SocialFeedPage() {
   const { user } = useSelector((s) => s.auth)
@@ -12,12 +18,13 @@ export default function SocialFeedPage() {
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ['posts'],
-    queryFn: () => api.get('/social/posts').then((r) => r.data),
+    queryFn: getPosts,
     retry: false,
   })
 
   const createPost = useMutation({
-    mutationFn: (data) => api.post('/social/posts', data),
+    mutationFn: ({ content }) =>
+      fbCreatePost(user.id, user.full_name, user.stream, content),
     onSuccess: () => {
       queryClient.invalidateQueries(['posts'])
       setContent('')
@@ -27,7 +34,7 @@ export default function SocialFeedPage() {
   })
 
   const likePost = useMutation({
-    mutationFn: (postId) => api.post(`/social/posts/${postId}/like`),
+    mutationFn: (postId) => fbLikePost(postId, user.id),
     onSuccess: () => queryClient.invalidateQueries(['posts']),
   })
 
@@ -61,6 +68,7 @@ export default function SocialFeedPage() {
               placeholder="Share something with your classmates..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              maxLength={500}
             />
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-400">
@@ -126,17 +134,35 @@ function PostCard({ post, currentUser, onLike }) {
   const [comment, setComment] = useState('')
   const queryClient = useQueryClient()
 
+  const { data: comments } = useQuery({
+    queryKey: ['comments', post.id],
+    queryFn: () => getComments(post.id),
+    enabled: showComments,
+  })
+
   const addComment = useMutation({
-    mutationFn: (data) => api.post(`/social/posts/${post.id}/comments`, data),
+    mutationFn: ({ content }) =>
+      fbAddComment(post.id, currentUser.id, currentUser.full_name, content),
     onSuccess: () => {
+      queryClient.invalidateQueries(['comments', post.id])
       queryClient.invalidateQueries(['posts'])
       setComment('')
+      toast.success('Comment added!')
     },
     onError: () => toast.error('Failed to add comment'),
   })
 
+  const getTimestamp = (createdAt) => {
+    if (!createdAt) return ''
+    const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt)
+    return formatDistanceToNow(date, { addSuffix: true })
+  }
+
+  const isLikedByMe = post.liked_by?.includes(currentUser?.id)
+
   return (
     <div className="card">
+
       {/* Post header */}
       <div className="flex items-start gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium text-sm flex-shrink-0">
@@ -147,9 +173,7 @@ function PostCard({ post, currentUser, onLike }) {
             {post.author_name}
           </div>
           <div className="text-xs text-gray-400 flex items-center gap-2">
-            <span>
-              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-            </span>
+            <span>{getTimestamp(post.created_at)}</span>
             {post.author_stream && (
               <span className={`badge-${post.author_stream}`}>
                 {post.author_stream}
@@ -169,12 +193,12 @@ function PostCard({ post, currentUser, onLike }) {
         <button
           onClick={onLike}
           className={`flex items-center gap-1.5 text-sm transition-colors ${
-            post.liked_by_me
+            isLikedByMe
               ? 'text-red-500'
               : 'text-gray-400 hover:text-red-400'
           }`}
         >
-          <span>{post.liked_by_me ? '❤️' : '🤍'}</span>
+          <span>{isLikedByMe ? '❤️' : '🤍'}</span>
           <span>{post.likes_count || 0}</span>
         </button>
 
@@ -190,20 +214,30 @@ function PostCard({ post, currentUser, onLike }) {
       {/* Comments section */}
       {showComments && (
         <div className="mt-4 pt-4 border-t border-gray-100">
+
           {/* Comments list */}
-          {(post.comments || []).map((c) => (
-            <div key={c.id} className="flex gap-2 mb-3">
-              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-medium flex-shrink-0">
-                {c.author_name?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
-                <div className="text-xs font-medium text-gray-700 mb-0.5">
-                  {c.author_name}
+          {comments?.length ? (
+            comments.map((c) => (
+              <div key={c.id} className="flex gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-medium flex-shrink-0">
+                  {c.author_name?.charAt(0).toUpperCase()}
                 </div>
-                <div className="text-xs text-gray-600">{c.content}</div>
+                <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="text-xs font-medium text-gray-700 mb-0.5">
+                    {c.author_name}
+                  </div>
+                  <div className="text-xs text-gray-600">{c.content}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {getTimestamp(c.created_at)}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-xs text-gray-400 mb-3">
+              No comments yet — be the first!
+            </p>
+          )}
 
           {/* Add comment */}
           <div className="flex gap-2 mt-3">
@@ -223,11 +257,13 @@ function PostCard({ post, currentUser, onLike }) {
                 }}
               />
               <button
-                onClick={() => comment.trim() && addComment.mutate({ content: comment })}
+                onClick={() =>
+                  comment.trim() && addComment.mutate({ content: comment })
+                }
                 disabled={!comment.trim() || addComment.isPending}
                 className="btn-primary text-xs px-3"
               >
-                Post
+                {addComment.isPending ? '...' : 'Post'}
               </button>
             </div>
           </div>

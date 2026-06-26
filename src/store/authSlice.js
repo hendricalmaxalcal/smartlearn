@@ -1,36 +1,110 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import api from '../services/api'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from 'firebase/auth'
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+} from 'firebase/firestore'
+import { auth, db } from '../firebase'
 
-export const loginUser = createAsyncThunk('auth/login', async (credentials, { rejectWithValue }) => {
-  try {
-    const { data } = await api.post('/auth/login', credentials)
-    localStorage.setItem('accessToken', data.accessToken)
-    localStorage.setItem('refreshToken', data.refreshToken)
-    return data.user
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || 'Login failed')
-  }
-})
+export const registerUser = createAsyncThunk(
+  'auth/register',
+  async ({ full_name, email, password, form_level, stream }, { rejectWithValue }) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
 
-export const registerUser = createAsyncThunk('auth/register', async (formData, { rejectWithValue }) => {
-  try {
-    const { data } = await api.post('/auth/register', formData)
-    localStorage.setItem('accessToken', data.accessToken)
-    localStorage.setItem('refreshToken', data.refreshToken)
-    return data.user
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || 'Registration failed')
-  }
-})
+      await updateProfile(user, { displayName: full_name })
 
-export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithValue }) => {
-  try {
-    const { data } = await api.get('/auth/me')
-    return data
-  } catch {
-    return rejectWithValue(null)
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        full_name,
+        email,
+        role: 'student',
+        form_level,
+        stream,
+        avatar_url: null,
+        is_verified: true,
+        created_at: serverTimestamp(),
+      })
+
+      return {
+        id: user.uid,
+        full_name,
+        email,
+        role: 'student',
+        form_level,
+        stream,
+        avatar_url: null,
+      }
+    } catch (err) {
+      return rejectWithValue(err.message)
+    }
   }
-})
+)
+
+export const loginUser = createAsyncThunk(
+  'auth/login',
+  async ({ email, password }, { rejectWithValue }) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (!userDoc.exists()) {
+        return rejectWithValue('User data not found')
+      }
+
+      const userData = userDoc.data()
+      return {
+        id: user.uid,
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role || 'student',
+        form_level: userData.form_level,
+        stream: userData.stream,
+        avatar_url: userData.avatar_url || null,
+      }
+    } catch (err) {
+      if (err.code === 'auth/invalid-credential') {
+        return rejectWithValue('Invalid email or password')
+      }
+      return rejectWithValue(err.message)
+    }
+  }
+)
+
+export const fetchMe = createAsyncThunk(
+  'auth/fetchMe',
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = auth.currentUser
+      if (!user) return rejectWithValue(null)
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (!userDoc.exists()) return rejectWithValue(null)
+
+      const userData = userDoc.data()
+      return {
+        id: user.uid,
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role || 'student',
+        form_level: userData.form_level,
+        stream: userData.stream,
+        avatar_url: userData.avatar_url || null,
+      }
+    } catch {
+      return rejectWithValue(null)
+    }
+  }
+)
 
 const authSlice = createSlice({
   name: 'auth',
@@ -43,11 +117,13 @@ const authSlice = createSlice({
   reducers: {
     logout(state) {
       state.user = null
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      signOut(auth)
     },
     clearError(state) {
       state.error = null
+    },
+    setInitialized(state) {
+      state.initialized = true
     },
   },
   extraReducers: (builder) => {
@@ -72,5 +148,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout, clearError } = authSlice.actions
+export const { logout, clearError, setInitialized } = authSlice.actions
 export default authSlice.reducer

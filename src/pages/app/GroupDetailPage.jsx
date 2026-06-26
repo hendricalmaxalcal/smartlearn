@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
-import api from '../../services/api'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  getGroup,
+  getGroupMessages,
+  sendGroupMessage as fbSendMessage,
+} from '../../services/firestore'
 
 export default function GroupDetailPage() {
   const { id } = useParams()
@@ -15,17 +19,18 @@ export default function GroupDetailPage() {
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
-    queryFn: () => api.get(`/groups/${id}`).then((r) => r.data),
+    queryFn: () => getGroup(id),
   })
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['group-messages', id],
-    queryFn: () => api.get(`/groups/${id}/messages`).then((r) => r.data),
+    queryFn: () => getGroupMessages(id),
     refetchInterval: 5000,
   })
 
   const sendMessage = useMutation({
-    mutationFn: (data) => api.post(`/groups/${id}/messages`, data),
+    mutationFn: ({ content }) =>
+      fbSendMessage(id, user.id, user.full_name, content),
     onSuccess: () => {
       queryClient.invalidateQueries(['group-messages', id])
       setMessage('')
@@ -41,6 +46,12 @@ export default function GroupDetailPage() {
     e.preventDefault()
     if (!message.trim()) return
     sendMessage.mutate({ content: message })
+  }
+
+  const getTimestamp = (ts) => {
+    if (!ts) return ''
+    const date = ts.toDate ? ts.toDate() : new Date(ts)
+    return formatDistanceToNow(date, { addSuffix: true })
   }
 
   if (isLoading) {
@@ -69,17 +80,10 @@ export default function GroupDetailPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-
-      {/* Main chat area */}
       <div className="flex-1 flex flex-col">
-
-        {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link
-              to="/app/groups"
-              className="text-gray-400 hover:text-gray-600 text-sm"
-            >
+            <Link to="/app/groups" className="text-gray-400 hover:text-gray-600 text-sm">
               ←
             </Link>
             <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl">
@@ -96,7 +100,6 @@ export default function GroupDetailPage() {
           </div>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {messagesLoading ? (
             <div className="text-center text-gray-400 text-sm py-8">
@@ -127,7 +130,7 @@ export default function GroupDetailPage() {
                       {msg.content}
                     </div>
                     <span className="text-xs text-gray-400 mt-1 px-1">
-                      {formatDistanceToNow(new Date(msg.sent_at), { addSuffix: true })}
+                      {getTimestamp(msg.sent_at)}
                     </span>
                   </div>
                 </div>
@@ -144,7 +147,6 @@ export default function GroupDetailPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Message input */}
         {isMember || isOwner ? (
           <div className="bg-white border-t border-gray-200 p-4">
             <form onSubmit={handleSend} className="flex gap-3">
@@ -170,7 +172,6 @@ export default function GroupDetailPage() {
         )}
       </div>
 
-      {/* Members sidebar */}
       <aside className="w-64 bg-white border-l border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <h3 className="font-medium text-gray-900 text-sm">
@@ -178,28 +179,24 @@ export default function GroupDetailPage() {
           </h3>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          {(group.members || []).map((member) => (
-            <div key={member.id} className="flex items-center gap-2 py-2">
-              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0">
-                {member.full_name?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {member.full_name}
-                </div>
-                <div className="text-xs text-gray-400 capitalize">
-                  {member.stream}
-                </div>
-              </div>
-              {member.id === group.owner_id && (
-                <span className="text-xs bg-primary-50 text-primary-600 px-1.5 py-0.5 rounded">
-                  Owner
-                </span>
-              )}
+          <div className="flex items-center gap-2 py-2">
+            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0">
+              {group.owner_name?.charAt(0).toUpperCase()}
             </div>
-          ))}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {group.owner_name}
+              </div>
+              <div className="text-xs text-gray-400">Owner</div>
+            </div>
+            <span className="text-xs bg-primary-50 text-primary-600 px-1.5 py-0.5 rounded">
+              Owner
+            </span>
+          </div>
+          <div className="text-xs text-gray-400 px-2 mt-3 pt-3 border-t border-gray-100">
+            {memberCount} total member{memberCount !== 1 ? 's' : ''}
+          </div>
         </div>
-
         {group.description && (
           <div className="p-4 border-t border-gray-200">
             <h4 className="text-xs font-medium text-gray-500 mb-2">About</h4>
@@ -209,7 +206,6 @@ export default function GroupDetailPage() {
           </div>
         )}
       </aside>
-
     </div>
   )
 }

@@ -2,18 +2,18 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { Toaster } from 'react-hot-toast'
-import { fetchMe } from './store/authSlice'
 import { PrivateRoute, AdminRoute } from './components/guards/PrivateRoute'
 
-import PublicLayout   from './components/layout/PublicLayout'
-import AppLayout      from './components/layout/AppLayout'
-import AdminLayout    from './components/layout/AdminLayout'
+import PublicLayout  from './components/layout/PublicLayout'
+import AppLayout     from './components/layout/AppLayout'
+import AdminLayout   from './components/layout/AdminLayout'
 
-import HomePage       from './pages/public/HomePage'
-import LoginPage      from './pages/public/LoginPage'
-import RegisterPage   from './pages/public/RegisterPage'
-import PricingPage    from './pages/public/PricingPage'
-import VerifyEmailPage from './pages/public/VerifyEmailPage'
+import HomePage          from './pages/public/HomePage'
+import LoginPage         from './pages/public/LoginPage'
+import RegisterPage      from './pages/public/RegisterPage'
+import PricingPage       from './pages/public/PricingPage'
+import CourseCatalogPage from './pages/public/CourseCatalogPage'
+import VerifyEmailPage   from './pages/public/VerifyEmailPage'
 
 import DashboardPage    from './pages/app/DashboardPage'
 import MyCoursesPage    from './pages/app/MyCoursesPage'
@@ -32,16 +32,6 @@ import AdminSubscriptions from './pages/admin/AdminSubscriptions'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
 
 export default function App() {
-  const dispatch = useDispatch()
-
-  useEffect(() => {
-    if (localStorage.getItem('accessToken')) {
-      dispatch(fetchMe())
-    } else {
-      dispatch({ type: 'auth/fetchMe/rejected' })
-    }
-  }, [dispatch])
-
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
@@ -53,6 +43,7 @@ export default function App() {
           <Route path="/login"     element={<LoginPage />} />
           <Route path="/register"  element={<RegisterPage />} />
           <Route path="/pricing"   element={<PricingPage />} />
+          <Route path="/courses"   element={<CourseCatalogPage />} />
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
         </Route>
 

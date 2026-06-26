@@ -19,6 +19,23 @@ const FORMS = [
   { value: 'form6', label: 'Form 6' },
 ]
 
+const ROLES = [
+  {
+    value: 'student',
+    label: 'Student',
+    icon: '🎓',
+    desc: 'Access courses and learning materials',
+    color: 'bg-primary-50 border-primary-200 text-primary-800',
+  },
+  {
+    value: 'teacher',
+    label: 'Teacher',
+    icon: '👨‍🏫',
+    desc: 'Create and manage course content',
+    color: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+  },
+]
+
 export default function RegisterPage() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -30,6 +47,7 @@ export default function RegisterPage() {
     password: '',
     form_level: 'form1',
     stream: 'science',
+    role: 'student',
   })
 
   const handleSubmit = async (e) => {
@@ -41,7 +59,8 @@ export default function RegisterPage() {
     const result = await dispatch(registerUser(form))
     if (registerUser.fulfilled.match(result)) {
       toast.success('Account created! Welcome to SmartLearn.')
-      navigate('/app/dashboard')
+      const user = result.payload
+      navigate(user.role === 'admin' ? '/admin/dashboard' : '/app/dashboard')
     } else {
       toast.error(result.payload || 'Registration failed')
     }
@@ -67,6 +86,33 @@ export default function RegisterPage() {
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {/* Role selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                I am registering as
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {ROLES.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, role: r.value })}
+                    className={`border-2 rounded-xl p-3 text-left transition-all ${
+                      form.role === r.value
+                        ? `${r.color} border-current`
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="block text-2xl mb-1">{r.icon}</span>
+                    <span className="block text-xs font-medium">{r.label}</span>
+                    <span className="block text-xs text-gray-400 mt-0.5 leading-snug">
+                      {r.desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Name + Form level */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -83,17 +129,29 @@ export default function RegisterPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Form level
+                  {form.role === 'teacher' ? 'Subject / Stream' : 'Form level'}
                 </label>
-                <select
-                  className="input"
-                  value={form.form_level}
-                  onChange={(e) => setForm({ ...form, form_level: e.target.value })}
-                >
-                  {FORMS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
+                {form.role === 'teacher' ? (
+                  <select
+                    className="input"
+                    value={form.stream}
+                    onChange={(e) => setForm({ ...form, stream: e.target.value })}
+                  >
+                    <option value="science">Science</option>
+                    <option value="arts">Arts</option>
+                    <option value="business">Business</option>
+                  </select>
+                ) : (
+                  <select
+                    className="input"
+                    value={form.form_level}
+                    onChange={(e) => setForm({ ...form, form_level: e.target.value })}
+                  >
+                    {FORMS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -135,7 +193,6 @@ export default function RegisterPage() {
                   {show ? 'Hide' : 'Show'}
                 </button>
               </div>
-              {/* Password strength bar */}
               {form.password.length > 0 && (
                 <div className="mt-1.5 flex gap-1">
                   {[1, 2, 3, 4].map((i) => (
@@ -154,29 +211,45 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Stream selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Academic stream
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {STREAMS.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setForm({ ...form, stream: s.value })}
-                    className={`border-2 rounded-xl p-3 text-center transition-all ${
-                      form.stream === s.value
-                        ? `${s.color} border-current`
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="block text-2xl mb-1">{s.icon}</span>
-                    <span className="text-xs font-medium">{s.label}</span>
-                  </button>
-                ))}
+            {/* Stream selection — only for students */}
+            {form.role === 'student' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Academic stream
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {STREAMS.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, stream: s.value })}
+                      className={`border-2 rounded-xl p-3 text-center transition-all ${
+                        form.stream === s.value
+                          ? `${s.color} border-current`
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="block text-2xl mb-1">{s.icon}</span>
+                      <span className="text-xs font-medium">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Teacher info box */}
+            {form.role === 'teacher' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-700 font-medium mb-1">
+                  Teacher account notice
+                </p>
+                <p className="text-xs text-amber-600 leading-relaxed">
+                  Your teacher account will be reviewed by an admin before
+                  you can upload content. You can still access all student
+                  features while waiting for approval.
+                </p>
+              </div>
+            )}
 
             {/* Terms */}
             <p className="text-xs text-gray-400 text-center">
