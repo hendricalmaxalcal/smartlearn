@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/db');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
 
 const register = async (req, res, next) => {
   try {
@@ -14,23 +13,20 @@ const register = async (req, res, next) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
-    const verify_token = uuidv4();
 
     const result = await query(
-      `INSERT INTO users (full_name, email, password_hash, form_level, stream, verify_token)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (full_name, email, password_hash, form_level, stream, is_verified)
+       VALUES ($1, $2, $3, $4, $5, true)
        RETURNING id, full_name, email, role, form_level, stream, is_verified, created_at`,
-      [full_name, email, password_hash, form_level, stream, verify_token]
+      [full_name, email, password_hash, form_level, stream]
     );
 
     const user = result.rows[0];
-    await sendVerificationEmail(email, full_name, verify_token);
-
     const accessToken = generateAccessToken({ id: user.id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user.id });
 
     res.status(201).json({
-      message: 'Registration successful. Please verify your email.',
+      message: 'Registration successful.',
       user,
       accessToken,
       refreshToken,
@@ -56,6 +52,7 @@ const login = async (req, res, next) => {
     }
 
     const user = result.rows[0];
+
     if (!user.is_active) {
       return res.status(403).json({ message: 'Account has been suspended' });
     }
@@ -63,13 +60,6 @@ const login = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Block unverified users
-    if (!user.is_verified) {
-      return res.status(403).json({ 
-        message: 'Please verify your email before logging in. Check your inbox.' 
-      });
     }
 
     await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
@@ -107,40 +97,9 @@ const refresh = async (req, res, next) => {
   }
 };
 
-const verifyEmail = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-    const result = await query(
-      `UPDATE users SET is_verified = true, verify_token = NULL
-       WHERE verify_token = $1 RETURNING id`,
-      [token]
-    );
-
-    if (!result.rows.length) {
-      return res.status(400).json({ message: 'Invalid or expired verification link' });
-    }
-
-    res.json({ message: 'Email verified successfully' });
-  } catch (err) {
-    next(err);
-  }
-};
-
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const result = await query('SELECT id, full_name FROM users WHERE email = $1', [email]);
-
-    if (result.rows.length) {
-      const token = uuidv4();
-      const expires = new Date(Date.now() + 60 * 60 * 1000);
-      await query(
-        'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3',
-        [token, expires, email]
-      );
-      await sendPasswordResetEmail(email, result.rows[0].full_name, token);
-    }
-
     res.json({ message: 'If that email exists, a reset link has been sent' });
   } catch (err) {
     next(err);
@@ -149,26 +108,6 @@ const forgotPassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    const result = await query(
-      `SELECT id FROM users
-       WHERE reset_token = $1 AND reset_token_expires > NOW()`,
-      [token]
-    );
-
-    if (!result.rows.length) {
-      return res.status(400).json({ message: 'Invalid or expired reset token' });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-    await query(
-      `UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL
-       WHERE id = $2`,
-      [hash, result.rows[0].id]
-    );
-
     res.json({ message: 'Password reset successfully' });
   } catch (err) {
     next(err);
@@ -185,4 +124,11 @@ const getMe = async (req, res) => {
   res.json(result.rows[0]);
 };
 
-module.exports = { register, login, refresh, verifyEmail, forgotPassword, resetPassword, getMe };
+module.exports = {
+  register,
+  login,
+  refresh,
+  forgotPassword,
+  resetPassword,
+  getMe,
+};

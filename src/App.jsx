@@ -5,23 +5,24 @@ import { Toaster } from 'react-hot-toast'
 import { fetchMe } from './store/authSlice'
 import { PrivateRoute, AdminRoute } from './components/guards/PrivateRoute'
 
-import PublicLayout  from './components/layout/PublicLayout'
-import AppLayout     from './components/layout/AppLayout'
-import AdminLayout   from './components/layout/AdminLayout'
+import PublicLayout   from './components/layout/PublicLayout'
+import AppLayout      from './components/layout/AppLayout'
+import AdminLayout    from './components/layout/AdminLayout'
 
-import HomePage        from './pages/public/HomePage'
-import LoginPage       from './pages/public/LoginPage'
-import RegisterPage    from './pages/public/RegisterPage'
-import PricingPage     from './pages/public/PricingPage'
+import HomePage       from './pages/public/HomePage'
+import LoginPage      from './pages/public/LoginPage'
+import RegisterPage   from './pages/public/RegisterPage'
+import PricingPage    from './pages/public/PricingPage'
 import VerifyEmailPage from './pages/public/VerifyEmailPage'
 
-import DashboardPage   from './pages/app/DashboardPage'
-import MyCoursesPage   from './pages/app/MyCoursesPage'
+import DashboardPage    from './pages/app/DashboardPage'
+import MyCoursesPage    from './pages/app/MyCoursesPage'
 import CourseViewerPage from './pages/app/CourseViewerPage'
-import SocialFeedPage  from './pages/app/SocialFeedPage'
-import StudyGroupsPage from './pages/app/StudyGroupsPage'
-import MessagingPage   from './pages/app/MessagingPage'
-import EventsPage      from './pages/app/EventsPage'
+import SocialFeedPage   from './pages/app/SocialFeedPage'
+import StudyGroupsPage  from './pages/app/StudyGroupsPage'
+import GroupDetailPage  from './pages/app/GroupDetailPage'
+import MessagingPage    from './pages/app/MessagingPage'
+import EventsPage       from './pages/app/EventsPage'
 
 import AdminDashboard     from './pages/admin/AdminDashboard'
 import AdminUsers         from './pages/admin/AdminUsers'
@@ -48,23 +49,24 @@ export default function App() {
 
         {/* Public pages */}
         <Route element={<PublicLayout />}>
-          <Route path="/"         element={<HomePage />} />
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/pricing"  element={<PricingPage />} />
+          <Route path="/"          element={<HomePage />} />
+          <Route path="/login"     element={<LoginPage />} />
+          <Route path="/register"  element={<RegisterPage />} />
+          <Route path="/pricing"   element={<PricingPage />} />
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
         </Route>
 
         {/* Student app */}
         <Route path="/app" element={<PrivateRoute><AppLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard"  element={<DashboardPage />} />
-          <Route path="my-courses" element={<MyCoursesPage />} />
+          <Route path="dashboard"     element={<DashboardPage />} />
+          <Route path="my-courses"    element={<MyCoursesPage />} />
           <Route path="courses/:slug" element={<CourseViewerPage />} />
-          <Route path="feed"       element={<SocialFeedPage />} />
-          <Route path="groups"     element={<StudyGroupsPage />} />
-          <Route path="messages"   element={<MessagingPage />} />
-          <Route path="events"     element={<EventsPage />} />
+          <Route path="feed"          element={<SocialFeedPage />} />
+          <Route path="groups"        element={<StudyGroupsPage />} />
+          <Route path="groups/:id"    element={<GroupDetailPage />} />
+          <Route path="messages"      element={<MessagingPage />} />
+          <Route path="events"        element={<EventsPage />} />
         </Route>
 
         {/* Admin panel */}
