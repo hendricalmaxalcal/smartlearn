@@ -58,9 +58,12 @@ export default function RegisterPage() {
     }
     const result = await dispatch(registerUser(form))
     if (registerUser.fulfilled.match(result)) {
-      toast.success('Account created! Welcome to SmartLearn.')
-      const user = result.payload
-      navigate(user.role === 'admin' ? '/admin/dashboard' : '/app/dashboard')
+      if (result.payload.needsVerification) {
+        navigate('/verify-email-sent')
+      } else {
+        toast.success('Account created! Welcome to SmartLearn.')
+        navigate('/app/dashboard')
+      }
     } else {
       toast.error(result.payload || 'Registration failed')
     }
@@ -70,7 +73,6 @@ export default function RegisterPage() {
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-lg">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <img
             src="/smartlearn.png"
@@ -129,7 +131,7 @@ export default function RegisterPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {form.role === 'teacher' ? 'Subject / Stream' : 'Form level'}
+                  {form.role === 'teacher' ? 'Subject stream' : 'Form level'}
                 </label>
                 {form.role === 'teacher' ? (
                   <select
@@ -211,7 +213,7 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Stream selection — only for students */}
+            {/* Stream — students only */}
             {form.role === 'student' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -237,7 +239,7 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Teacher info box */}
+            {/* Teacher notice */}
             {form.role === 'teacher' && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-xs text-amber-700 font-medium mb-1">
@@ -259,7 +261,6 @@ export default function RegisterPage() {
               <Link to="/privacy" className="text-primary-600 hover:underline">Privacy Policy</Link>
             </p>
 
-            {/* Submit */}
             <button
               type="submit"
               className="btn-primary w-full py-2.5 text-base"
@@ -270,7 +271,6 @@ export default function RegisterPage() {
 
           </form>
 
-          {/* Switch to login */}
           <p className="text-center text-sm text-gray-500 mt-4">
             Already have an account?{' '}
             <Link to="/login" className="text-primary-600 hover:underline font-medium">

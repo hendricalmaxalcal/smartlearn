@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
 })
 
 onAuthStateChanged(auth, (user) => {
-  if (user) {
+  if (user && user.emailVerified) {
     store.dispatch(fetchMe())
   } else {
     store.dispatch(setInitialized())

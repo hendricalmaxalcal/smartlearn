@@ -2,8 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { loginUser } from '../../store/authSlice'
+import {
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+} from 'firebase/auth'
+import { auth } from '../../firebase'
 import toast from 'react-hot-toast'
-import api from '../../services/api'
 
 export default function LoginPage() {
   const dispatch = useDispatch()
@@ -24,16 +29,18 @@ export default function LoginPage() {
     }
   }
 
-  const resendVerification = async () => {
-    if (!form.email) {
-      toast.error('Please enter your email address first')
+  const handleResend = async () => {
+    if (!form.email || !form.password) {
+      toast.error('Enter your email and password first')
       return
     }
     try {
-      await api.post('/auth/resend-verification', { email: form.email })
+      const cred = await signInWithEmailAndPassword(auth, form.email, form.password)
+      await sendEmailVerification(cred.user)
+      await signOut(auth)
       toast.success('Verification email sent! Check your inbox.')
     } catch {
-      toast.error('Could not resend email. Try again.')
+      toast.error('Could not resend. Check your email and password.')
     }
   }
 
@@ -41,7 +48,6 @@ export default function LoginPage() {
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <img
             src="/smartlearn.png"
@@ -65,7 +71,7 @@ export default function LoginPage() {
               {error.includes('verify') && (
                 <div className="mt-2">
                   <button
-                    onClick={resendVerification}
+                    onClick={handleResend}
                     className="text-amber-700 underline text-xs font-medium hover:text-amber-900"
                   >
                     Resend verification email
@@ -77,7 +83,6 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
@@ -92,7 +97,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-gray-700">
@@ -124,7 +128,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               className="btn-primary w-full py-2.5 text-base"
@@ -135,15 +138,12 @@ export default function LoginPage() {
 
           </form>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="text-xs text-gray-400">or</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-
-          {/* Switch to register */}
           <p className="text-center text-sm text-gray-500">
             Don't have an account?{' '}
             <Link to="/register" className="text-primary-600 hover:underline font-medium">

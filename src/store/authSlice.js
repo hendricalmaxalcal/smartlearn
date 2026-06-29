@@ -4,46 +4,46 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  sendEmailVerification,
 } from 'firebase/auth'
 import {
   doc,
   setDoc,
   getDoc,
+  updateDoc,
   serverTimestamp,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 
 export const registerUser = createAsyncThunk(
   'auth/register',
-  async ({ full_name, email, password, form_level, stream }, { rejectWithValue }) => {
+  async ({ full_name, email, password, form_level, stream, role }, { rejectWithValue }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
       await updateProfile(user, { displayName: full_name })
+      await sendEmailVerification(user)
 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         full_name,
         email,
-        role: 'student',
+        role: (role || 'student').toLowerCase(),
         form_level,
         stream,
         avatar_url: null,
-        is_verified: true,
+        is_verified: false,
         created_at: serverTimestamp(),
       })
 
-      return {
-        id: user.uid,
-        full_name,
-        email,
-        role: 'student',
-        form_level,
-        stream,
-        avatar_url: null,
-      }
+      await signOut(auth)
+
+      return { needsVerification: true, email }
     } catch (err) {
+      if (err.code === 'auth/email-already-in-use') {
+        return rejectWithValue('Email already registered')
+      }
       return rejectWithValue(err.message)
     }
   }
@@ -56,12 +56,24 @@ export const loginUser = createAsyncThunk(
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
+      if (!user.emailVerified) {
+        await signOut(auth)
+        return rejectWithValue(
+          'Please verify your email before logging in. Check your inbox.'
+        )
+      }
+
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (!userDoc.exists()) {
         return rejectWithValue('User data not found')
       }
 
       const userData = userDoc.data()
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        is_verified: true,
+      })
+
       return {
         id: user.uid,
         full_name: userData.full_name,
@@ -86,6 +98,8 @@ export const fetchMe = createAsyncThunk(
     try {
       const user = auth.currentUser
       if (!user) return rejectWithValue(null)
+
+      if (!user.emailVerified) return rejectWithValue(null)
 
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (!userDoc.exists()) return rejectWithValue(null)
@@ -113,10 +127,14 @@ const authSlice = createSlice({
     loading: false,
     error: null,
     initialized: false,
+    needsVerification: false,
+    verificationEmail: null,
   },
   reducers: {
     logout(state) {
       state.user = null
+      state.needsVerification = false
+      state.verificationEmail = null
       signOut(auth)
     },
     clearError(state) {
@@ -127,17 +145,36 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    const pending   = (state) => { state.loading = true; state.error = null }
-    const fulfilled = (state, action) => { state.loading = false; state.user = action.payload }
-    const rejected  = (state, action) => { state.loading = false; state.error = action.payload }
-
     builder
-      .addCase(loginUser.pending, pending)
-      .addCase(loginUser.fulfilled, fulfilled)
-      .addCase(loginUser.rejected, rejected)
-      .addCase(registerUser.pending, pending)
-      .addCase(registerUser.fulfilled, fulfilled)
-      .addCase(registerUser.rejected, rejected)
+      .addCase(loginUser.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.loading = false
+        state.user = action.payload
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+      })
+      .addCase(registerUser.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false
+        if (action.payload.needsVerification) {
+          state.needsVerification = true
+          state.verificationEmail = action.payload.email
+        } else {
+          state.user = action.payload
+        }
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+      })
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.user = action.payload
         state.initialized = true

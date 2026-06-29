@@ -104,8 +104,7 @@ export default function PricingPage() {
             Simple, transparent pricing
           </h1>
           <p className="text-gray-500 text-lg">
-            Start for free. Upgrade when you are ready.
-            Cancel anytime.
+            Start for free. Upgrade when you are ready. Cancel anytime.
           </p>
         </div>
       </section>
@@ -160,14 +159,14 @@ export default function PricingPage() {
 
                 {user ? (
                   <Link
-                    to="/app/dashboard"
+                    to={plan.price === 'TSh 0' ? '/app/dashboard' : '/app/subscription'}
                     className={`block text-center py-2.5 rounded-xl text-sm font-medium transition-colors ${
                       plan.highlight
                         ? 'bg-primary-600 text-white hover:bg-primary-800'
                         : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    Go to dashboard
+                    {plan.price === 'TSh 0' ? 'Go to dashboard' : `Get ${plan.name}`}
                   </Link>
                 ) : (
                   <Link
@@ -205,18 +204,18 @@ export default function PricingPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Form 1 & 2 courses',    free: true,  basic: true,  premium: true },
-                  { feature: 'Form 3 & 4 courses',    free: false, basic: true,  premium: true },
-                  { feature: 'Form 5 & 6 courses',    free: false, basic: false, premium: true },
-                  { feature: 'Video lessons',         free: false, basic: true,  premium: true },
-                  { feature: 'PDF downloads',         free: false, basic: true,  premium: true },
-                  { feature: 'Social feed',           free: true,  basic: true,  premium: true },
-                  { feature: 'Messaging',             free: true,  basic: true,  premium: true },
-                  { feature: 'Study groups',          free: true,  basic: true,  premium: true },
-                  { feature: 'Events',                free: true,  basic: true,  premium: true },
-                  { feature: 'Certificates',          free: false, basic: false, premium: true },
-                  { feature: 'Offline access',        free: false, basic: false, premium: true },
-                  { feature: 'Priority support',      free: false, basic: false, premium: true },
+                  { feature: 'Form 1 & 2 courses',  free: true,  basic: true,  premium: true },
+                  { feature: 'Form 3 & 4 courses',  free: false, basic: true,  premium: true },
+                  { feature: 'Form 5 & 6 courses',  free: false, basic: false, premium: true },
+                  { feature: 'Video lessons',       free: false, basic: true,  premium: true },
+                  { feature: 'PDF downloads',       free: false, basic: true,  premium: true },
+                  { feature: 'Social feed',         free: true,  basic: true,  premium: true },
+                  { feature: 'Messaging',           free: true,  basic: true,  premium: true },
+                  { feature: 'Study groups',        free: true,  basic: true,  premium: true },
+                  { feature: 'Events',              free: true,  basic: true,  premium: true },
+                  { feature: 'Certificates',        free: false, basic: false, premium: true },
+                  { feature: 'Offline access',      free: false, basic: false, premium: true },
+                  { feature: 'Priority support',    free: false, basic: false, premium: true },
                 ].map((row, i) => (
                   <tr
                     key={row.feature}
@@ -295,10 +294,10 @@ export default function PricingPage() {
           </p>
           {user ? (
             <Link
-              to="/app/dashboard"
+              to="/app/subscription"
               className="inline-block bg-white text-primary-600 font-medium px-8 py-3 rounded-xl text-sm hover:bg-primary-50 transition-colors"
             >
-              Go to dashboard
+              Manage subscription
             </Link>
           ) : (
             <Link

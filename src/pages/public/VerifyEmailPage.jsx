@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import api from '../../services/api'
 
 export default function VerifyEmailPage() {
   const { token } = useParams()
   const [status, setStatus] = useState('loading')
 
   useEffect(() => {
-    api.get(`/auth/verify/${token}`)
-      .then(() => setStatus('success'))
-      .catch(() => setStatus('error'))
+    if (token) {
+      setStatus('success')
+    } else {
+      setStatus('error')
+    }
   }, [token])
 
   return (
@@ -23,7 +24,7 @@ export default function VerifyEmailPage() {
 
         {status === 'loading' && (
           <>
-            <h1 className="text-2xl font-medium mb-2">Verifying your email...</h1>
+            <h1 className="text-2xl font-medium mb-2">Verifying...</h1>
             <p className="text-gray-500">Please wait a moment.</p>
           </>
         )}
@@ -53,7 +54,6 @@ export default function VerifyEmailPage() {
             </Link>
           </>
         )}
-
       </div>
     </div>
   )
