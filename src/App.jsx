@@ -6,12 +6,13 @@ import PublicLayout   from './components/layout/PublicLayout'
 import AppLayout      from './components/layout/AppLayout'
 import AdminLayout    from './components/layout/AdminLayout'
 
-import HomePage           from './pages/public/HomePage'
-import LoginPage          from './pages/public/LoginPage'
-import RegisterPage       from './pages/public/RegisterPage'
-import PricingPage        from './pages/public/PricingPage'
-import CourseCatalogPage  from './pages/public/CourseCatalogPage'
-import VerifyEmailPage    from './pages/public/VerifyEmailPage'
+import HomePage            from './pages/public/HomePage'
+import LoginPage           from './pages/public/LoginPage'
+import RegisterPage        from './pages/public/RegisterPage'
+import PricingPage         from './pages/public/PricingPage'
+import CourseCatalogPage   from './pages/public/CourseCatalogPage'
+import AboutPage           from './pages/public/AboutPage'
+import VerifyEmailPage     from './pages/public/VerifyEmailPage'
 import VerifyEmailSentPage from './pages/public/VerifyEmailSentPage'
 
 import DashboardPage    from './pages/app/DashboardPage'
@@ -36,16 +37,19 @@ export default function App() {
       <Toaster position="top-right" />
       <Routes>
 
+        {/* Public pages */}
         <Route element={<PublicLayout />}>
-          <Route path="/"                   element={<HomePage />} />
-          <Route path="/login"              element={<LoginPage />} />
-          <Route path="/register"           element={<RegisterPage />} />
-          <Route path="/pricing"            element={<PricingPage />} />
-          <Route path="/courses"            element={<CourseCatalogPage />} />
-          <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
-          <Route path="/verify-email-sent"     element={<VerifyEmailSentPage />} />
+          <Route path="/"                  element={<HomePage />} />
+          <Route path="/login"             element={<LoginPage />} />
+          <Route path="/register"          element={<RegisterPage />} />
+          <Route path="/pricing"           element={<PricingPage />} />
+          <Route path="/courses"           element={<CourseCatalogPage />} />
+          <Route path="/about"             element={<AboutPage />} />
+          <Route path="/verify-email/:token"  element={<VerifyEmailPage />} />
+          <Route path="/verify-email-sent"    element={<VerifyEmailSentPage />} />
         </Route>
 
+        {/* Student app */}
         <Route path="/app" element={<PrivateRoute><AppLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard"     element={<DashboardPage />} />
@@ -58,6 +62,7 @@ export default function App() {
           <Route path="events"        element={<EventsPage />} />
         </Route>
 
+        {/* Admin panel */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard"     element={<AdminDashboard />} />
