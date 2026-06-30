@@ -8,6 +8,7 @@ import {
   createGroup as fbCreateGroup,
   joinGroup as fbJoinGroup,
   leaveGroup as fbLeaveGroup,
+  deleteGroup as fbDeleteGroup,
 } from '../../services/firestore'
 
 export default function StudyGroupsPage() {
@@ -15,6 +16,7 @@ export default function StudyGroupsPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [activeTab, setActiveTab] = useState('discover')
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -57,6 +59,16 @@ export default function StudyGroupsPage() {
     },
   })
 
+  const deleteGroup = useMutation({
+    mutationFn: (groupId) => fbDeleteGroup(groupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['groups'])
+      setConfirmDelete(null)
+      toast.success('Group deleted')
+    },
+    onError: () => toast.error('Failed to delete group'),
+  })
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) return
@@ -64,10 +76,10 @@ export default function StudyGroupsPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-4 md:p-6 max-w-5xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-medium text-gray-900">Study groups</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -76,7 +88,7 @@ export default function StudyGroupsPage() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="btn-primary text-sm"
+          className="btn-primary text-sm w-full md:w-auto"
         >
           {showCreate ? 'Cancel' : '+ Create group'}
         </button>
@@ -89,7 +101,7 @@ export default function StudyGroupsPage() {
             Create a new study group
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Group name
@@ -118,7 +130,7 @@ export default function StudyGroupsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Form level
@@ -158,6 +170,12 @@ export default function StudyGroupsPage() {
               <label htmlFor="private" className="text-sm text-gray-700">
                 Make this group private (invite only)
               </label>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                ℹ️ All admins will be automatically added to this group as moderators.
+              </p>
             </div>
 
             <button
@@ -208,9 +226,10 @@ export default function StudyGroupsPage() {
             <GroupCard
               key={group.id}
               group={group}
-              currentUserId={user?.id}
+              currentUser={user}
               onJoin={() => joinGroup.mutate(group.id)}
               onLeave={() => leaveGroup.mutate(group.id)}
+              onDelete={() => setConfirmDelete(group)}
             />
           ))}
         </div>
@@ -233,14 +252,53 @@ export default function StudyGroupsPage() {
           </button>
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div
+          style={{ minHeight: '200px', background: 'rgba(0,0,0,0.45)' }}
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="card max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-medium text-gray-900 mb-2">Delete group</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete{' '}
+              <strong>{confirmDelete.name}</strong>? All messages and members
+              will be removed. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="btn-outline text-sm px-4"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteGroup.mutate(confirmDelete.id)}
+                disabled={deleteGroup.isPending}
+                className="text-sm px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                {deleteGroup.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
 
-function GroupCard({ group, currentUserId, onJoin, onLeave }) {
+function GroupCard({ group, currentUser, onJoin, onLeave, onDelete }) {
   const navigate = useNavigate()
-  const isMember = group.member_ids?.includes(currentUserId)
-  const isOwner = group.owner_id === currentUserId
+  const isMember = group.member_ids?.includes(currentUser?.id)
+  const isOwner = group.owner_id === currentUser?.id
+  const isAdmin = currentUser?.role === 'admin'
+  const canDelete = isOwner || isAdmin
   const memberCount = group.member_ids?.length || 0
 
   const streamColor = {
@@ -255,11 +313,22 @@ function GroupCard({ group, currentUserId, onJoin, onLeave }) {
         <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl flex-shrink-0">
           👥
         </div>
-        {group.is_private && (
-          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-            Private
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {group.is_private && (
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+              Private
+            </span>
+          )}
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="text-gray-300 hover:text-red-500 text-sm p-1 transition-colors"
+              title="Delete group"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       </div>
 
       <h3 className="font-medium text-gray-900 text-sm mb-1 leading-snug">
@@ -271,7 +340,7 @@ function GroupCard({ group, currentUserId, onJoin, onLeave }) {
         </p>
       )}
 
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1 mb-3 flex-wrap">
         {group.stream && (
           <span className={streamColor}>{group.stream}</span>
         )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
@@ -8,14 +8,33 @@ import {
   getGroup,
   getGroupMessages,
   sendGroupMessage as fbSendMessage,
+  deleteGroup as fbDeleteGroup,
+  deleteGroupMessage,
 } from '../../services/firestore'
 
 export default function GroupDetailPage() {
   const { id } = useParams()
   const { user } = useSelector((s) => s.auth)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [message, setMessage] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [activeMsgId, setActiveMsgId] = useState(null)
   const bottomRef = useRef(null)
+
+  const handleDeleteGroup = async () => {
+    setDeleting(true)
+    try {
+      await fbDeleteGroup(id)
+      toast.success('Group deleted')
+      navigate('/app/groups')
+    } catch {
+      toast.error('Failed to delete group')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -36,6 +55,16 @@ export default function GroupDetailPage() {
       setMessage('')
     },
     onError: () => toast.error('Failed to send message'),
+  })
+
+  const deleteMsg = useMutation({
+    mutationFn: (messageId) => deleteGroupMessage(messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['group-messages', id])
+      setActiveMsgId(null)
+      toast.success('Message deleted')
+    },
+    onError: () => toast.error('Failed to delete message'),
   })
 
   useEffect(() => {
@@ -79,27 +108,74 @@ export default function GroupDetailPage() {
   const memberCount = group.member_ids?.length || 0
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden">
       <div className="flex-1 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/app/groups" className="text-gray-400 hover:text-gray-600 text-sm">
+
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to="/app/groups" className="text-gray-400 hover:text-gray-600 text-sm flex-shrink-0">
               ←
             </Link>
-            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl flex-shrink-0">
               👥
             </div>
-            <div>
-              <h1 className="font-medium text-gray-900">{group.name}</h1>
-              <p className="text-xs text-gray-400">
+            <div className="min-w-0">
+              <h1 className="font-medium text-gray-900 truncate">{group.name}</h1>
+              <p className="text-xs text-gray-400 truncate">
                 {memberCount} member{memberCount !== 1 ? 's' : ''}
                 {group.stream && ` · ${group.stream}`}
                 {group.form_level && ` · ${group.form_level.replace('form', 'Form ')}`}
               </p>
             </div>
           </div>
+          {(isOwner || user?.role === 'admin') && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-gray-400 hover:text-red-500 text-sm p-2 flex-shrink-0"
+              title="Delete group"
+            >
+              🗑️
+            </button>
+          )}
         </div>
 
+        {/* Delete group confirm */}
+        {showDeleteConfirm && (
+          <div
+            style={{ minHeight: '200px', background: 'rgba(0,0,0,0.45)' }}
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <div
+              className="card max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-medium text-gray-900 mb-2">Delete group</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Are you sure you want to delete <strong>{group.name}</strong>?
+                All messages and members will be removed. This cannot be undone.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="btn-outline text-sm px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteGroup}
+                  disabled={deleting}
+                  className="text-sm px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {messagesLoading ? (
             <div className="text-center text-gray-400 text-sm py-8">
@@ -108,6 +184,7 @@ export default function GroupDetailPage() {
           ) : messages?.length ? (
             messages.map((msg) => {
               const isMe = msg.sender_id === user?.id
+              const isActive = activeMsgId === msg.id
               return (
                 <div
                   key={msg.id}
@@ -116,19 +193,42 @@ export default function GroupDetailPage() {
                   <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0">
                     {msg.sender_name?.charAt(0).toUpperCase()}
                   </div>
-                  <div className={`max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
+                  <div className={`max-w-[75%] md:max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
                     {!isMe && (
                       <span className="text-xs text-gray-500 mb-1 px-1">
                         {msg.sender_name}
                       </span>
                     )}
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm ${
-                      isMe
-                        ? 'bg-primary-600 text-white rounded-tr-sm'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                    }`}>
-                      {msg.content}
+                    <div className="flex items-center gap-1">
+                      {isMe && (
+                        <button
+                          onClick={() => setActiveMsgId(isActive ? null : msg.id)}
+                          className="text-gray-300 hover:text-gray-500 text-xs p-1 flex-shrink-0"
+                          title="Message options"
+                        >
+                          ⋮
+                        </button>
+                      )}
+                      <div
+                        onClick={() => isMe && setActiveMsgId(isActive ? null : msg.id)}
+                        className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'cursor-pointer' : ''} ${
+                          isMe
+                            ? 'bg-primary-600 text-white rounded-tr-sm'
+                            : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
                     </div>
+                    {isMe && isActive && (
+                      <button
+                        onClick={() => deleteMsg.mutate(msg.id)}
+                        disabled={deleteMsg.isPending}
+                        className="text-xs text-red-500 hover:text-red-700 mt-1 px-1"
+                      >
+                        {deleteMsg.isPending ? 'Deleting...' : 'Delete message'}
+                      </button>
+                    )}
                     <span className="text-xs text-gray-400 mt-1 px-1">
                       {getTimestamp(msg.sent_at)}
                     </span>
@@ -147,9 +247,10 @@ export default function GroupDetailPage() {
           <div ref={bottomRef} />
         </div>
 
+        {/* Input */}
         {isMember || isOwner ? (
-          <div className="bg-white border-t border-gray-200 p-4">
-            <form onSubmit={handleSend} className="flex gap-3">
+          <div className="bg-white border-t border-gray-200 p-3 md:p-4">
+            <form onSubmit={handleSend} className="flex gap-2 md:gap-3">
               <input
                 className="input flex-1"
                 placeholder="Type a message..."
@@ -158,7 +259,7 @@ export default function GroupDetailPage() {
               />
               <button
                 type="submit"
-                className="btn-primary px-6"
+                className="btn-primary px-4 md:px-6"
                 disabled={!message.trim() || sendMessage.isPending}
               >
                 Send
@@ -172,7 +273,8 @@ export default function GroupDetailPage() {
         )}
       </div>
 
-      <aside className="w-64 bg-white border-l border-gray-200 flex flex-col">
+      {/* Members sidebar — hidden on mobile */}
+      <aside className="hidden md:flex md:w-64 bg-white border-l border-gray-200 flex-col">
         <div className="p-4 border-b border-gray-200">
           <h3 className="font-medium text-gray-900 text-sm">
             Members ({memberCount})

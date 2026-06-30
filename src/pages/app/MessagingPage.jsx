@@ -9,6 +9,7 @@ import {
   sendMessage as fbSendMessage,
   createConversation,
   getUsers,
+  deleteDirectMessage,
 } from '../../services/firestore'
 
 export default function MessagingPage() {
@@ -18,6 +19,8 @@ export default function MessagingPage() {
   const [message, setMessage] = useState('')
   const [showNewChat, setShowNewChat] = useState(false)
   const [searchUser, setSearchUser] = useState('')
+  const [activeMsgId, setActiveMsgId] = useState(null)
+  const [showSidebar, setShowSidebar] = useState(true)
   const bottomRef = useRef(null)
 
   const { data: conversations, isLoading: convsLoading } = useQuery({
@@ -52,6 +55,16 @@ export default function MessagingPage() {
     onError: () => toast.error('Failed to send message'),
   })
 
+  const deleteMsg = useMutation({
+    mutationFn: (messageId) => deleteDirectMessage(messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['messages', activeConv?.id])
+      setActiveMsgId(null)
+      toast.success('Message deleted')
+    },
+    onError: () => toast.error('Failed to delete message'),
+  })
+
   const startConversation = useMutation({
     mutationFn: (otherUser) =>
       createConversation(user.id, user.full_name, otherUser.id, otherUser.full_name),
@@ -60,6 +73,7 @@ export default function MessagingPage() {
       setActiveConv(conv)
       setShowNewChat(false)
       setSearchUser('')
+      setShowSidebar(false)
     },
     onError: () => toast.error('Failed to start conversation'),
   })
@@ -86,13 +100,19 @@ export default function MessagingPage() {
       .find(([id]) => id !== user?.id)?.[1] || 'Unknown'
   }
 
+  const selectConversation = (conv) => {
+    setActiveConv(conv)
+    setShowSidebar(false)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden">
 
       {/* Conversations sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
-
-        {/* Header */}
+      <aside className={`
+        w-full md:w-72 bg-white border-r border-gray-200 flex-col
+        ${showSidebar ? 'flex' : 'hidden'} md:flex
+      `}>
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h1 className="font-medium text-gray-900">Messages</h1>
           <button
@@ -103,7 +123,6 @@ export default function MessagingPage() {
           </button>
         </div>
 
-        {/* New chat search */}
         {showNewChat && (
           <div className="p-3 border-b border-gray-200 bg-gray-50">
             <input
@@ -144,7 +163,6 @@ export default function MessagingPage() {
           </div>
         )}
 
-        {/* Conversations list */}
         <div className="flex-1 overflow-y-auto">
           {convsLoading ? (
             <div className="space-y-2 p-3">
@@ -162,7 +180,7 @@ export default function MessagingPage() {
             conversations.map((conv) => (
               <button
                 key={conv.id}
-                onClick={() => setActiveConv(conv)}
+                onClick={() => selectConversation(conv)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-gray-100 ${
                   activeConv?.id === conv.id
                     ? 'bg-primary-50'
@@ -203,23 +221,27 @@ export default function MessagingPage() {
       </aside>
 
       {/* Chat area */}
-      <main className="flex-1 flex flex-col bg-gray-50">
+      <main className={`flex-1 flex-col bg-gray-50 ${showSidebar ? 'hidden' : 'flex'} md:flex`}>
         {activeConv ? (
           <>
-            {/* Chat header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-sm font-medium">
+            <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center gap-3">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="md:hidden text-gray-400 hover:text-gray-600 text-sm"
+              >
+                ←
+              </button>
+              <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-sm font-medium flex-shrink-0">
                 {getOtherParticipant(activeConv)?.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <h2 className="font-medium text-gray-900">
+              <div className="min-w-0">
+                <h2 className="font-medium text-gray-900 truncate">
                   {getOtherParticipant(activeConv)}
                 </h2>
                 <p className="text-xs text-gray-400">Direct message</p>
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {msgsLoading ? (
                 <div className="text-center text-gray-400 text-sm py-8">
@@ -228,6 +250,7 @@ export default function MessagingPage() {
               ) : messages?.length ? (
                 messages.map((msg) => {
                   const isMe = msg.sender_id === user?.id
+                  const isActive = activeMsgId === msg.id
                   return (
                     <div
                       key={msg.id}
@@ -236,14 +259,37 @@ export default function MessagingPage() {
                       <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0">
                         {msg.sender_name?.charAt(0).toUpperCase()}
                       </div>
-                      <div className={`max-w-xs lg:max-w-md flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-2.5 rounded-2xl text-sm ${
-                          isMe
-                            ? 'bg-primary-600 text-white rounded-tr-sm'
-                            : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                        }`}>
-                          {msg.content}
+                      <div className={`max-w-[75%] md:max-w-xs lg:max-w-md flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                        <div className="flex items-center gap-1">
+                          {isMe && (
+                            <button
+                              onClick={() => setActiveMsgId(isActive ? null : msg.id)}
+                              className="text-gray-300 hover:text-gray-500 text-xs p-1 flex-shrink-0"
+                              title="Message options"
+                            >
+                              ⋮
+                            </button>
+                          )}
+                          <div
+                            onClick={() => isMe && setActiveMsgId(isActive ? null : msg.id)}
+                            className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'cursor-pointer' : ''} ${
+                              isMe
+                                ? 'bg-primary-600 text-white rounded-tr-sm'
+                                : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                            }`}
+                          >
+                            {msg.content}
+                          </div>
                         </div>
+                        {isMe && isActive && (
+                          <button
+                            onClick={() => deleteMsg.mutate(msg.id)}
+                            disabled={deleteMsg.isPending}
+                            className="text-xs text-red-500 hover:text-red-700 mt-1 px-1"
+                          >
+                            {deleteMsg.isPending ? 'Deleting...' : 'Delete message'}
+                          </button>
+                        )}
                         <span className="text-xs text-gray-400 mt-1 px-1">
                           {getTimestamp(msg.sent_at)}
                         </span>
@@ -262,9 +308,8 @@ export default function MessagingPage() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Message input */}
-            <div className="bg-white border-t border-gray-200 p-4">
-              <form onSubmit={handleSend} className="flex gap-3">
+            <div className="bg-white border-t border-gray-200 p-3 md:p-4">
+              <form onSubmit={handleSend} className="flex gap-2 md:gap-3">
                 <input
                   className="input flex-1"
                   placeholder="Type a message..."
@@ -273,7 +318,7 @@ export default function MessagingPage() {
                 />
                 <button
                   type="submit"
-                  className="btn-primary px-6"
+                  className="btn-primary px-4 md:px-6"
                   disabled={!message.trim() || sendMsg.isPending}
                 >
                   Send
@@ -283,7 +328,7 @@ export default function MessagingPage() {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
+            <div className="text-center px-4">
               <div className="text-6xl mb-4">💬</div>
               <h2 className="text-xl font-medium text-gray-900 mb-2">
                 Your messages

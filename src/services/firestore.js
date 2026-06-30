@@ -198,10 +198,11 @@ export const getGroups = async (tab, userId) => {
 }
 
 export const createGroup = async (userId, userName, data) => {
-  const adminsSnapshot = await getDocs(
-    query(collection(db, 'users'), where('role', '==', 'admin'))
-  )
-  const adminIds = adminsSnapshot.docs.map((d) => d.id)
+  const allUsersSnapshot = await getDocs(collection(db, 'users'))
+  const adminIds = allUsersSnapshot.docs
+    .filter((d) => d.data().role?.toLowerCase() === 'admin')
+    .map((d) => d.id)
+
   const memberIds = [...new Set([userId, ...adminIds])]
 
   const ref = await addDoc(collection(db, 'study_groups'), {
@@ -224,6 +225,24 @@ export const leaveGroup = async (groupId, userId) => {
   await updateDoc(doc(db, 'study_groups', groupId), {
     member_ids: arrayRemove(userId),
   })
+}
+
+export const deleteGroup = async (groupId) => {
+  const messagesSnapshot = await getDocs(
+    query(collection(db, 'group_messages'), where('group_id', '==', groupId))
+  )
+  await Promise.all(
+    messagesSnapshot.docs.map((d) => deleteDoc(doc(db, 'group_messages', d.id)))
+  )
+
+  const convSnapshot = await getDocs(
+    query(collection(db, 'conversations'), where('group_id', '==', groupId))
+  )
+  await Promise.all(
+    convSnapshot.docs.map((d) => deleteDoc(doc(db, 'conversations', d.id)))
+  )
+
+  await deleteDoc(doc(db, 'study_groups', groupId))
 }
 
 export const getGroup = async (groupId) => {
@@ -523,4 +542,11 @@ export const createChapter = async (courseId, title, orderIndex) => {
     created_at: serverTimestamp(),
   })
   return ref.id
+}
+export const deleteGroupMessage = async (messageId) => {
+  await deleteDoc(doc(db, 'group_messages', messageId))
+}
+
+export const deleteDirectMessage = async (messageId) => {
+  await deleteDoc(doc(db, 'direct_messages', messageId))
 }
