@@ -23,8 +23,13 @@ export const getCourses = async (filters = {}) => {
   const constraints = [where('is_published', '==', true)]
   if (filters.form_level) constraints.push(where('form_level', '==', filters.form_level))
   if (filters.stream) constraints.push(where('stream', '==', filters.stream))
-  const snapshot = await getDocs(query(collection(db, 'courses'), ...constraints, orderBy('created_at', 'desc')))
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const snapshot = await getDocs(query(collection(db, 'courses'), ...constraints))
+  const courses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return courses.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
 }
 
 export const getCourseBySlug = async (slug) => {
@@ -36,15 +41,19 @@ export const getCourseBySlug = async (slug) => {
   const course = { id: courseDoc.id, ...courseDoc.data() }
 
   const chaptersSnapshot = await getDocs(
-    query(collection(db, 'chapters'), where('course_id', '==', course.id), orderBy('order_index'))
+    query(collection(db, 'chapters'), where('course_id', '==', course.id))
   )
+  const chapters = chaptersSnapshot.docs.map((ch) => ({ id: ch.id, ...ch.data() }))
+  chapters.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+
   course.chapters = await Promise.all(
-    chaptersSnapshot.docs.map(async (ch) => {
-      const chapter = { id: ch.id, ...ch.data() }
+    chapters.map(async (chapter) => {
       const resourcesSnapshot = await getDocs(
-        query(collection(db, 'resources'), where('chapter_id', '==', ch.id), orderBy('order_index'))
+        query(collection(db, 'resources'), where('chapter_id', '==', chapter.id))
       )
-      chapter.resources = resourcesSnapshot.docs.map((r) => ({ id: r.id, ...r.data() }))
+      const resources = resourcesSnapshot.docs.map((r) => ({ id: r.id, ...r.data() }))
+      resources.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+      chapter.resources = resources
       return chapter
     })
   )
@@ -102,10 +111,14 @@ export const deleteCourse = async (courseId) => {
 // ─── POSTS ─────────────────────────────────────────────────
 
 export const getPosts = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, 'posts'), orderBy('created_at', 'desc'), limit(50))
-  )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const snapshot = await getDocs(collection(db, 'posts'))
+  const posts = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  posts.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
+  return posts.slice(0, 50)
 }
 
 export const createPost = async (userId, userName, userStream, content) => {
@@ -153,9 +166,14 @@ export const addComment = async (postId, userId, userName, content) => {
 
 export const getComments = async (postId) => {
   const snapshot = await getDocs(
-    query(collection(db, 'comments'), where('post_id', '==', postId), orderBy('created_at', 'asc'))
+    query(collection(db, 'comments'), where('post_id', '==', postId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const comments = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return comments.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return aTime - bTime
+  })
 }
 
 // ─── STUDY GROUPS ──────────────────────────────────────────
@@ -168,18 +186,29 @@ export const getGroups = async (tab, userId) => {
     )
   } else {
     snapshot = await getDocs(
-      query(collection(db, 'study_groups'), where('is_private', '==', false), orderBy('created_at', 'desc'), limit(20))
+      query(collection(db, 'study_groups'), where('is_private', '==', false))
     )
   }
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const groups = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return groups.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
 }
 
 export const createGroup = async (userId, userName, data) => {
+  const adminsSnapshot = await getDocs(
+    query(collection(db, 'users'), where('role', '==', 'admin'))
+  )
+  const adminIds = adminsSnapshot.docs.map((d) => d.id)
+  const memberIds = [...new Set([userId, ...adminIds])]
+
   const ref = await addDoc(collection(db, 'study_groups'), {
     ...data,
     owner_id: userId,
     owner_name: userName,
-    member_ids: [userId],
+    member_ids: memberIds,
     created_at: serverTimestamp(),
   })
   return ref.id
@@ -207,14 +236,14 @@ export const getGroup = async (groupId) => {
 
 export const getGroupMessages = async (groupId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'group_messages'),
-      where('group_id', '==', groupId),
-      orderBy('sent_at', 'asc'),
-      limit(100)
-    )
+    query(collection(db, 'group_messages'), where('group_id', '==', groupId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return messages.sort((a, b) => {
+    const aTime = a.sent_at?.toMillis ? a.sent_at.toMillis() : 0
+    const bTime = b.sent_at?.toMillis ? b.sent_at.toMillis() : 0
+    return aTime - bTime
+  })
 }
 
 export const sendGroupMessage = async (groupId, userId, userName, content) => {
@@ -230,23 +259,28 @@ export const sendGroupMessage = async (groupId, userId, userName, content) => {
 // ─── EVENTS ────────────────────────────────────────────────
 
 export const getEvents = async () => {
+  const snapshot = await getDocs(collection(db, 'events'))
+  const events = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
   const now = new Date()
-  const snapshot = await getDocs(
-    query(
-      collection(db, 'events'),
-      where('event_date', '>=', now),
-      orderBy('event_date', 'asc'),
-      limit(20)
-    )
-  )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const upcoming = events.filter((e) => {
+    const date = e.event_date?.toDate ? e.event_date.toDate() : new Date(e.event_date)
+    return date >= now
+  })
+  return upcoming.sort((a, b) => {
+    const aTime = a.event_date?.toMillis ? a.event_date.toMillis() : new Date(a.event_date).getTime()
+    const bTime = b.event_date?.toMillis ? b.event_date.toMillis() : new Date(b.event_date).getTime()
+    return aTime - bTime
+  }).slice(0, 20)
 }
 
 export const getAllEvents = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, 'events'), orderBy('event_date', 'desc'))
-  )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const snapshot = await getDocs(collection(db, 'events'))
+  const events = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return events.sort((a, b) => {
+    const aTime = a.event_date?.toMillis ? a.event_date.toMillis() : new Date(a.event_date).getTime()
+    const bTime = b.event_date?.toMillis ? b.event_date.toMillis() : new Date(b.event_date).getTime()
+    return bTime - aTime
+  })
 }
 
 export const createEvent = async (userId, data) => {
@@ -276,13 +310,14 @@ export const rsvpEvent = async (eventId, userId) => {
 
 export const getTeacherCourses = async (teacherId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'courses'),
-      where('teacher_id', '==', teacherId),
-      orderBy('created_at', 'desc')
-    )
+    query(collection(db, 'courses'), where('teacher_id', '==', teacherId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const courses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return courses.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
 }
 
 export const getTeacherStats = async (teacherId) => {
@@ -303,25 +338,26 @@ export const getTeacherStats = async (teacherId) => {
 
 export const getConversations = async (userId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'conversations'),
-      where('participant_ids', 'array-contains', userId),
-      orderBy('last_message_at', 'desc')
-    )
+    query(collection(db, 'conversations'), where('participant_ids', 'array-contains', userId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const convs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return convs.sort((a, b) => {
+    const aTime = a.last_message_at?.toMillis ? a.last_message_at.toMillis() : 0
+    const bTime = b.last_message_at?.toMillis ? b.last_message_at.toMillis() : 0
+    return bTime - aTime
+  })
 }
 
 export const getMessages = async (conversationId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'direct_messages'),
-      where('conversation_id', '==', conversationId),
-      orderBy('sent_at', 'asc'),
-      limit(100)
-    )
+    query(collection(db, 'direct_messages'), where('conversation_id', '==', conversationId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return messages.sort((a, b) => {
+    const aTime = a.sent_at?.toMillis ? a.sent_at.toMillis() : 0
+    const bTime = b.sent_at?.toMillis ? b.sent_at.toMillis() : 0
+    return aTime - bTime
+  })
 }
 
 export const sendMessage = async (conversationId, senderId, senderName, content) => {
@@ -340,10 +376,7 @@ export const sendMessage = async (conversationId, senderId, senderName, content)
 
 export const createConversation = async (userId, userName, otherUserId, otherUserName) => {
   const existing = await getDocs(
-    query(
-      collection(db, 'conversations'),
-      where('participant_ids', 'array-contains', userId)
-    )
+    query(collection(db, 'conversations'), where('participant_ids', 'array-contains', userId))
   )
   const existingConv = existing.docs.find((d) => {
     const ids = d.data().participant_ids || []
@@ -398,14 +431,17 @@ export const getAdminStats = async () => {
 }
 
 export const getAdminUsers = async (role) => {
-  let q
+  const snapshot = await getDocs(collection(db, 'users'))
+  const allUsers = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  allUsers.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
   if (role && role !== 'all') {
-    q = query(collection(db, 'users'), where('role', '==', role), orderBy('created_at', 'desc'))
-  } else {
-    q = query(collection(db, 'users'), orderBy('created_at', 'desc'))
+    return allUsers.filter((u) => u.role?.toLowerCase() === role.toLowerCase())
   }
-  const snapshot = await getDocs(q)
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return allUsers
 }
 
 export const updateUserRole = async (userId, role) => {
@@ -419,10 +455,14 @@ export const deleteUserDoc = async (userId) => {
 // ─── ANNOUNCEMENTS ─────────────────────────────────────────
 
 export const getAnnouncements = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, 'announcements'), orderBy('created_at', 'desc'), limit(20))
-  )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const snapshot = await getDocs(collection(db, 'announcements'))
+  const announcements = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  announcements.sort((a, b) => {
+    const aTime = a.created_at?.toMillis ? a.created_at.toMillis() : 0
+    const bTime = b.created_at?.toMillis ? b.created_at.toMillis() : 0
+    return bTime - aTime
+  })
+  return announcements.slice(0, 20)
 }
 
 export const createAnnouncement = async (userId, userName, data) => {
@@ -442,13 +482,10 @@ export const deleteAnnouncement = async (id) => {
 
 export const getResources = async (chapterId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'resources'),
-      where('chapter_id', '==', chapterId),
-      orderBy('order_index')
-    )
+    query(collection(db, 'resources'), where('chapter_id', '==', chapterId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const resources = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return resources.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
 }
 
 export const createResource = async (data) => {
@@ -471,13 +508,10 @@ export const deleteResource = async (resourceId) => {
 
 export const getChapters = async (courseId) => {
   const snapshot = await getDocs(
-    query(
-      collection(db, 'chapters'),
-      where('course_id', '==', courseId),
-      orderBy('order_index')
-    )
+    query(collection(db, 'chapters'), where('course_id', '==', courseId))
   )
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const chapters = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+  return chapters.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
 }
 
 export const createChapter = async (courseId, title, orderIndex) => {

@@ -1,20 +1,22 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../store/authSlice'
 
 const navItems = [
-  { to: '/admin/dashboard',     label: 'Dashboard' },
-  { to: '/admin/upload',        label: 'Upload material' },
-  { to: '/admin/courses',       label: 'Courses' },
-  { to: '/admin/users',         label: 'Users' },
-  { to: '/admin/subscriptions', label: 'Subscriptions' },
-  { to: '/admin/announcements', label: 'Announcements' },
+  { to: '/admin/dashboard',     label: 'Dashboard',       icon: '🏠' },
+  { to: '/admin/upload',        label: 'Upload material', icon: '📤' },
+  { to: '/admin/courses',       label: 'Courses',         icon: '📚' },
+  { to: '/admin/users',         label: 'Users',           icon: '👥' },
+  { to: '/admin/subscriptions', label: 'Subscriptions',   icon: '💳' },
+  { to: '/admin/announcements', label: 'Announcements',   icon: '📢' },
 ]
 
 export default function AdminLayout() {
   const { user } = useSelector((s) => s.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleLogout = () => {
     dispatch(logout())
@@ -22,9 +24,28 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <aside className="w-56 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50">
+
+      <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
+        <span className="font-medium text-gray-900">
+          <span className="text-primary-600">Smart</span>Learn
+          <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Admin</span>
+        </span>
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="text-gray-600 text-xl"
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      <aside className={`
+        md:w-56 md:flex md:flex-col bg-white border-r border-gray-200
+        ${menuOpen ? 'flex flex-col' : 'hidden'}
+        md:relative absolute z-40 w-full md:h-auto h-[calc(100vh-57px)]
+      `}>
+        <div className="hidden md:block p-4 border-b border-gray-200">
           <span className="font-medium text-gray-900">
             <span className="text-primary-600">Smart</span>Learn
           </span>
@@ -38,21 +59,25 @@ export default function AdminLayout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setMenuOpen(false)}
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-lg text-sm transition-colors ${
+                `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isActive
                     ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-50'
                 }`
               }
             >
+              <span>{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
         </nav>
 
         <div className="p-3 border-t border-gray-200">
-          <div className="text-xs text-gray-500 px-2 mb-2 truncate">{user?.email}</div>
+          <div className="text-xs text-gray-500 px-2 mb-1 truncate">
+            {user?.email}
+          </div>
           <button
             onClick={handleLogout}
             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
