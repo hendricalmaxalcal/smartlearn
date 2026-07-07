@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { PrivateRoute, AdminRoute } from './components/guards/PrivateRoute'
+import InstallPWA from './components/common/InstallPWA'
 
 import PublicLayout   from './components/layout/PublicLayout'
 import AppLayout      from './components/layout/AppLayout'
@@ -35,18 +36,20 @@ export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
+      <InstallPWA />
+
       <Routes>
 
         {/* Public pages */}
         <Route element={<PublicLayout />}>
-          <Route path="/"                  element={<HomePage />} />
-          <Route path="/login"             element={<LoginPage />} />
-          <Route path="/register"          element={<RegisterPage />} />
-          <Route path="/pricing"           element={<PricingPage />} />
-          <Route path="/courses"           element={<CourseCatalogPage />} />
-          <Route path="/about"             element={<AboutPage />} />
-          <Route path="/verify-email/:token"  element={<VerifyEmailPage />} />
-          <Route path="/verify-email-sent"    element={<VerifyEmailSentPage />} />
+          <Route path="/"                      element={<HomePage />} />
+          <Route path="/login"                 element={<LoginPage />} />
+          <Route path="/register"              element={<RegisterPage />} />
+          <Route path="/pricing"               element={<PricingPage />} />
+          <Route path="/courses"               element={<CourseCatalogPage />} />
+          <Route path="/about"                 element={<AboutPage />} />
+          <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
+          <Route path="/verify-email-sent"     element={<VerifyEmailSentPage />} />
         </Route>
 
         {/* Student app */}
