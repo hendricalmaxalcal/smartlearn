@@ -550,3 +550,23 @@ export const deleteGroupMessage = async (messageId) => {
 export const deleteDirectMessage = async (messageId) => {
   await deleteDoc(doc(db, 'direct_messages', messageId))
 }
+
+export const uploadChatImage = async (file, groupId) => {
+  const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage')
+  const { storage } = await import('../firebase')
+
+  return new Promise((resolve, reject) => {
+    const fileRef = ref(storage, `chat-images/${groupId}/${Date.now()}_${file.name}`)
+    const uploadTask = uploadBytesResumable(fileRef, file)
+
+    uploadTask.on(
+      'state_changed',
+      null,
+      reject,
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref)
+        resolve(url)
+      }
+    )
+  })
+}

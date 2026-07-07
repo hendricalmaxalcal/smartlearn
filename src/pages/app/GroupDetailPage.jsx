@@ -10,6 +10,7 @@ import {
   sendGroupMessage as fbSendMessage,
   deleteGroup as fbDeleteGroup,
   deleteGroupMessage,
+  uploadChatImage,
 } from '../../services/firestore'
 
 export default function GroupDetailPage() {
@@ -21,7 +22,13 @@ export default function GroupDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [activeMsgId, setActiveMsgId] = useState(null)
+  const [replyTo, setReplyTo] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
+  const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const handleDeleteGroup = async () => {
     setDeleting(true)
@@ -44,15 +51,18 @@ export default function GroupDetailPage() {
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['group-messages', id],
     queryFn: () => getGroupMessages(id),
-    refetchInterval: 5000,
+    refetchInterval: 4000,
   })
 
   const sendMessage = useMutation({
-    mutationFn: ({ content }) =>
-      fbSendMessage(id, user.id, user.full_name, content),
+    mutationFn: async ({ content, replyTo, imageUrl }) =>
+      fbSendMessage(id, user.id, user.full_name, content, replyTo, imageUrl),
     onSuccess: () => {
       queryClient.invalidateQueries(['group-messages', id])
       setMessage('')
+      setReplyTo(null)
+      setImageFile(null)
+      setImagePreview(null)
     },
     onError: () => toast.error('Failed to send message'),
   })
@@ -71,10 +81,39 @@ export default function GroupDetailPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault()
-    if (!message.trim()) return
-    sendMessage.mutate({ content: message })
+    if (!message.trim() && !imageFile) return
+
+    setUploading(true)
+    try {
+      let imageUrl = null
+      if (imageFile) {
+        imageUrl = await uploadChatImage(imageFile, id)
+      }
+      sendMessage.mutate({ content: message, replyTo, imageUrl })
+    } catch {
+      toast.error('Failed to upload image')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB')
+      return
+    }
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const handleReply = (msg) => {
+    setReplyTo(msg)
+    setActiveMsgId(null)
+    inputRef.current?.focus()
   }
 
   const getTimestamp = (ts) => {
@@ -96,9 +135,7 @@ export default function GroupDetailPage() {
       <div className="p-6 text-center">
         <div className="text-4xl mb-3">😕</div>
         <h2 className="text-lg font-medium mb-2">Group not found</h2>
-        <Link to="/app/groups" className="btn-primary">
-          Back to groups
-        </Link>
+        <Link to="/app/groups" className="btn-primary">Back to groups</Link>
       </div>
     )
   }
@@ -133,7 +170,6 @@ export default function GroupDetailPage() {
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="text-gray-400 hover:text-red-500 text-sm p-2 flex-shrink-0"
-              title="Delete group"
             >
               🗑️
             </button>
@@ -147,20 +183,14 @@ export default function GroupDetailPage() {
             className="fixed inset-0 flex items-center justify-center z-50 p-4"
             onClick={() => setShowDeleteConfirm(false)}
           >
-            <div
-              className="card max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="card max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-medium text-gray-900 mb-2">Delete group</h3>
               <p className="text-sm text-gray-500 mb-4">
                 Are you sure you want to delete <strong>{group.name}</strong>?
-                All messages and members will be removed. This cannot be undone.
+                All messages will be removed. This cannot be undone.
               </p>
               <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="btn-outline text-sm px-4"
-                >
+                <button onClick={() => setShowDeleteConfirm(false)} className="btn-outline text-sm px-4">
                   Cancel
                 </button>
                 <button
@@ -178,9 +208,7 @@ export default function GroupDetailPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {messagesLoading ? (
-            <div className="text-center text-gray-400 text-sm py-8">
-              Loading messages...
-            </div>
+            <div className="text-center text-gray-400 text-sm py-8">Loading messages...</div>
           ) : messages?.length ? (
             messages.map((msg) => {
               const isMe = msg.sender_id === user?.id
@@ -190,45 +218,107 @@ export default function GroupDetailPage() {
                   key={msg.id}
                   className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0">
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0 mt-1">
                     {msg.sender_name?.charAt(0).toUpperCase()}
                   </div>
-                  <div className={`max-w-[75%] md:max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
+
+                  <div className={`max-w-[75%] md:max-w-sm flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    {/* Sender name */}
                     {!isMe && (
-                      <span className="text-xs text-gray-500 mb-1 px-1">
+                      <span className="text-xs text-gray-500 mb-1 px-1 font-medium">
                         {msg.sender_name}
                       </span>
                     )}
-                    <div className="flex items-center gap-1">
+
+                    {/* Message bubble */}
+                    <div className="flex items-end gap-1">
                       {isMe && (
                         <button
                           onClick={() => setActiveMsgId(isActive ? null : msg.id)}
-                          className="text-gray-300 hover:text-gray-500 text-xs p-1 flex-shrink-0"
-                          title="Message options"
+                          className="text-gray-300 hover:text-gray-500 text-xs p-1 flex-shrink-0 mb-1"
                         >
                           ⋮
                         </button>
                       )}
+
                       <div
                         onClick={() => isMe && setActiveMsgId(isActive ? null : msg.id)}
-                        className={`px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'cursor-pointer' : ''} ${
+                        className={`rounded-2xl text-sm overflow-hidden ${
                           isMe
-                            ? 'bg-primary-600 text-white rounded-tr-sm'
+                            ? 'bg-primary-600 text-white rounded-tr-sm cursor-pointer'
                             : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
                         }`}
                       >
-                        {msg.content}
+                        {/* Reply preview */}
+                        {msg.reply_to && (
+                          <div className={`px-3 pt-2 pb-1 border-b ${
+                            isMe
+                              ? 'border-primary-500 bg-primary-700'
+                              : 'border-gray-100 bg-gray-50'
+                          }`}>
+                            <div className={`text-xs font-medium mb-0.5 ${
+                              isMe ? 'text-primary-200' : 'text-primary-600'
+                            }`}>
+                              ↩ {msg.reply_to.sender_name}
+                            </div>
+                            <div className={`text-xs truncate ${
+                              isMe ? 'text-primary-200' : 'text-gray-500'
+                            }`}>
+                              {msg.reply_to.image_url ? '📷 Image' : msg.reply_to.content}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Image */}
+                        {msg.image_url && (
+                          <img
+                            src={msg.image_url}
+                            alt="shared"
+                            className="max-w-full rounded-lg cursor-pointer"
+                            style={{ maxHeight: '200px', objectFit: 'cover' }}
+                            onClick={() => window.open(msg.image_url, '_blank')}
+                          />
+                        )}
+
+                        {/* Text content */}
+                        {msg.content && (
+                          <div className="px-4 py-2.5">{msg.content}</div>
+                        )}
                       </div>
+
+                      {!isMe && (
+                        <button
+                          onClick={() => setActiveMsgId(isActive ? null : msg.id)}
+                          className="text-gray-300 hover:text-gray-500 text-xs p-1 flex-shrink-0 mb-1"
+                        >
+                          ⋮
+                        </button>
+                      )}
                     </div>
-                    {isMe && isActive && (
-                      <button
-                        onClick={() => deleteMsg.mutate(msg.id)}
-                        disabled={deleteMsg.isPending}
-                        className="text-xs text-red-500 hover:text-red-700 mt-1 px-1"
-                      >
-                        {deleteMsg.isPending ? 'Deleting...' : 'Delete message'}
-                      </button>
+
+                    {/* Action buttons */}
+                    {isActive && (
+                      <div className={`flex gap-2 mt-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <button
+                          onClick={() => handleReply(msg)}
+                          className="text-xs text-primary-600 hover:text-primary-800 font-medium"
+                        >
+                          ↩ Reply
+                        </button>
+                        {isMe && (
+                          <button
+                            onClick={() => deleteMsg.mutate(msg.id)}
+                            disabled={deleteMsg.isPending}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            {deleteMsg.isPending ? 'Deleting...' : '🗑️ Delete'}
+                          </button>
+                        )}
+                      </div>
                     )}
+
+                    {/* Timestamp */}
                     <span className="text-xs text-gray-400 mt-1 px-1">
                       {getTimestamp(msg.sent_at)}
                     </span>
@@ -239,30 +329,89 @@ export default function GroupDetailPage() {
           ) : (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">💬</div>
-              <p className="text-gray-500 text-sm">
-                No messages yet — start the discussion!
-              </p>
+              <p className="text-gray-500 text-sm">No messages yet — start the discussion!</p>
             </div>
           )}
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
+        {/* Input area */}
         {isMember || isOwner ? (
-          <div className="bg-white border-t border-gray-200 p-3 md:p-4">
-            <form onSubmit={handleSend} className="flex gap-2 md:gap-3">
+          <div className="bg-white border-t border-gray-200">
+
+            {/* Reply preview bar */}
+            {replyTo && (
+              <div className="px-4 pt-3 flex items-start gap-2">
+                <div className="flex-1 bg-gray-50 border-l-4 border-primary-400 rounded-lg px-3 py-2">
+                  <div className="text-xs font-medium text-primary-600 mb-0.5">
+                    ↩ Replying to {replyTo.sender_name}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {replyTo.image_url ? '📷 Image' : replyTo.content}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setReplyTo(null)}
+                  className="text-gray-400 hover:text-gray-600 text-lg leading-none mt-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Image preview */}
+            {imagePreview && (
+              <div className="px-4 pt-3 flex items-start gap-2">
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                  />
+                  <button
+                    onClick={() => { setImageFile(null); setImagePreview(null) }}
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Message input */}
+            <form onSubmit={handleSend} className="flex items-end gap-2 p-3 md:p-4">
+
+              {/* Image upload button */}
               <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-gray-400 hover:text-primary-600 text-xl flex-shrink-0 pb-1 transition-colors"
+                title="Upload image"
+              >
+                📷
+              </button>
+
+              <input
+                ref={inputRef}
                 className="input flex-1"
                 placeholder="Type a message..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
+
               <button
                 type="submit"
-                className="btn-primary px-4 md:px-6"
-                disabled={!message.trim() || sendMessage.isPending}
+                className="btn-primary px-4 md:px-6 flex-shrink-0"
+                disabled={(!message.trim() && !imageFile) || sendMessage.isPending || uploading}
               >
-                Send
+                {uploading ? '...' : 'Send'}
               </button>
             </form>
           </div>
@@ -276,9 +425,7 @@ export default function GroupDetailPage() {
       {/* Members sidebar — hidden on mobile */}
       <aside className="hidden md:flex md:w-64 bg-white border-l border-gray-200 flex-col">
         <div className="p-4 border-b border-gray-200">
-          <h3 className="font-medium text-gray-900 text-sm">
-            Members ({memberCount})
-          </h3>
+          <h3 className="font-medium text-gray-900 text-sm">Members ({memberCount})</h3>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           <div className="flex items-center gap-2 py-2">
@@ -286,9 +433,7 @@ export default function GroupDetailPage() {
               {group.owner_name?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">
-                {group.owner_name}
-              </div>
+              <div className="text-sm font-medium text-gray-900 truncate">{group.owner_name}</div>
               <div className="text-xs text-gray-400">Owner</div>
             </div>
             <span className="text-xs bg-primary-50 text-primary-600 px-1.5 py-0.5 rounded">
@@ -302,9 +447,7 @@ export default function GroupDetailPage() {
         {group.description && (
           <div className="p-4 border-t border-gray-200">
             <h4 className="text-xs font-medium text-gray-500 mb-2">About</h4>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              {group.description}
-            </p>
+            <p className="text-xs text-gray-600 leading-relaxed">{group.description}</p>
           </div>
         )}
       </aside>
