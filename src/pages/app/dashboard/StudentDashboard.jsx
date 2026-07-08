@@ -168,7 +168,7 @@ export default function StudentDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-medium text-gray-900">Upcoming events</h2>
-              <Link to="/app/events" className="text-sm text-primary-600 hover:underline">
+              <Link to="/app/announcements" className="text-sm text-primary-600 hover:underline">
                 View all
               </Link>
             </div>
