@@ -10,8 +10,9 @@ import {
   sendGroupMessage as fbSendMessage,
   deleteGroup as fbDeleteGroup,
   deleteGroupMessage,
-  uploadChatImage,
 } from '../../services/firestore'
+
+import { uploadImage } from '../../services/cloudinary'
 
 export default function GroupDetailPage() {
   const { id } = useParams()
@@ -64,7 +65,10 @@ export default function GroupDetailPage() {
       setImageFile(null)
       setImagePreview(null)
     },
-    onError: () => toast.error('Failed to send message'),
+    onError: (err) => {
+      console.error('Send message error:', err)
+      toast.error('Failed to send message')
+    },
   })
 
   const deleteMsg = useMutation({
@@ -81,24 +85,28 @@ export default function GroupDetailPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = async (e) => {
-    e.preventDefault()
-    if (!message.trim() && !imageFile) return
+ const handleSend = async (e) => {
+  e.preventDefault()
+  if (!message.trim() && !imageFile) return
 
-    setUploading(true)
-    try {
-      let imageUrl = null
-      if (imageFile) {
-        imageUrl = await uploadChatImage(imageFile, id)
-      }
-      sendMessage.mutate({ content: message, replyTo, imageUrl })
-    } catch {
-      toast.error('Failed to upload image')
-    } finally {
-      setUploading(false)
+  setUploading(true)
+  try {
+    let imageUrl = null
+    if (imageFile) {
+      toast.loading('Uploading image...', { id: 'upload' })
+      imageUrl = await uploadImage(imageFile, (progress) => {
+        console.log('Upload progress:', progress + '%')
+      })
+      toast.success('Image ready!', { id: 'upload' })
     }
+    sendMessage.mutate({ content: message, replyTo, imageUrl })
+  } catch (err) {
+    console.error('Upload error:', err)
+    toast.error('Failed to upload image', { id: 'upload' })
+  } finally {
+    setUploading(false)
   }
-
+}
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -208,7 +216,9 @@ export default function GroupDetailPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {messagesLoading ? (
-            <div className="text-center text-gray-400 text-sm py-8">Loading messages...</div>
+            <div className="text-center text-gray-400 text-sm py-8">
+              Loading messages...
+            </div>
           ) : messages?.length ? (
             messages.map((msg) => {
               const isMe = msg.sender_id === user?.id
@@ -224,6 +234,7 @@ export default function GroupDetailPage() {
                   </div>
 
                   <div className={`max-w-[75%] md:max-w-sm flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+
                     {/* Sender name */}
                     {!isMe && (
                       <span className="text-xs text-gray-500 mb-1 px-1 font-medium">
@@ -243,14 +254,13 @@ export default function GroupDetailPage() {
                       )}
 
                       <div
-                        onClick={() => isMe && setActiveMsgId(isActive ? null : msg.id)}
                         className={`rounded-2xl text-sm overflow-hidden ${
                           isMe
-                            ? 'bg-primary-600 text-white rounded-tr-sm cursor-pointer'
+                            ? 'bg-primary-600 text-white rounded-tr-sm'
                             : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
                         }`}
                       >
-                        {/* Reply preview */}
+                        {/* Reply preview inside bubble */}
                         {msg.reply_to && (
                           <div className={`px-3 pt-2 pb-1 border-b ${
                             isMe
@@ -275,13 +285,13 @@ export default function GroupDetailPage() {
                           <img
                             src={msg.image_url}
                             alt="shared"
-                            className="max-w-full rounded-lg cursor-pointer"
-                            style={{ maxHeight: '200px', objectFit: 'cover' }}
+                            className="max-w-full cursor-pointer"
+                            style={{ maxHeight: '220px', objectFit: 'cover', width: '100%' }}
                             onClick={() => window.open(msg.image_url, '_blank')}
                           />
                         )}
 
-                        {/* Text content */}
+                        {/* Text */}
                         {msg.content && (
                           <div className="px-4 py-2.5">{msg.content}</div>
                         )}
@@ -302,7 +312,7 @@ export default function GroupDetailPage() {
                       <div className={`flex gap-2 mt-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                         <button
                           onClick={() => handleReply(msg)}
-                          className="text-xs text-primary-600 hover:text-primary-800 font-medium"
+                          className="text-xs text-primary-600 hover:text-primary-800 font-medium bg-primary-50 px-2 py-1 rounded-lg"
                         >
                           ↩ Reply
                         </button>
@@ -310,7 +320,7 @@ export default function GroupDetailPage() {
                           <button
                             onClick={() => deleteMsg.mutate(msg.id)}
                             disabled={deleteMsg.isPending}
-                            className="text-xs text-red-500 hover:text-red-700"
+                            className="text-xs text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-lg"
                           >
                             {deleteMsg.isPending ? 'Deleting...' : '🗑️ Delete'}
                           </button>
@@ -329,7 +339,9 @@ export default function GroupDetailPage() {
           ) : (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">💬</div>
-              <p className="text-gray-500 text-sm">No messages yet — start the discussion!</p>
+              <p className="text-gray-500 text-sm">
+                No messages yet — start the discussion!
+              </p>
             </div>
           )}
           <div ref={bottomRef} />
@@ -352,7 +364,7 @@ export default function GroupDetailPage() {
                 </div>
                 <button
                   onClick={() => setReplyTo(null)}
-                  className="text-gray-400 hover:text-gray-600 text-lg leading-none mt-1"
+                  className="text-gray-400 hover:text-gray-600 text-lg leading-none mt-1 flex-shrink-0"
                 >
                   ✕
                 </button>
@@ -362,26 +374,31 @@ export default function GroupDetailPage() {
             {/* Image preview */}
             {imagePreview && (
               <div className="px-4 pt-3 flex items-start gap-2">
-                <div className="relative">
+                <div className="relative inline-block">
                   <img
                     src={imagePreview}
                     alt="preview"
                     className="w-20 h-20 object-cover rounded-lg border border-gray-200"
                   />
                   <button
-                    onClick={() => { setImageFile(null); setImagePreview(null) }}
+                    onClick={() => {
+                      setImageFile(null)
+                      setImagePreview(null)
+                      if (fileInputRef.current) fileInputRef.current.value = ''
+                    }}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
                   >
                     ✕
                   </button>
                 </div>
+                <div className="text-xs text-gray-500 self-end pb-1">
+                  {imageFile?.name}
+                </div>
               </div>
             )}
 
-            {/* Message input */}
+            {/* Message form */}
             <form onSubmit={handleSend} className="flex items-end gap-2 p-3 md:p-4">
-
-              {/* Image upload button */}
               <input
                 type="file"
                 accept="image/*"
@@ -411,7 +428,7 @@ export default function GroupDetailPage() {
                 className="btn-primary px-4 md:px-6 flex-shrink-0"
                 disabled={(!message.trim() && !imageFile) || sendMessage.isPending || uploading}
               >
-                {uploading ? '...' : 'Send'}
+                {uploading ? '⏳' : 'Send'}
               </button>
             </form>
           </div>
@@ -425,7 +442,9 @@ export default function GroupDetailPage() {
       {/* Members sidebar — hidden on mobile */}
       <aside className="hidden md:flex md:w-64 bg-white border-l border-gray-200 flex-col">
         <div className="p-4 border-b border-gray-200">
-          <h3 className="font-medium text-gray-900 text-sm">Members ({memberCount})</h3>
+          <h3 className="font-medium text-gray-900 text-sm">
+            Members ({memberCount})
+          </h3>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           <div className="flex items-center gap-2 py-2">
@@ -433,7 +452,9 @@ export default function GroupDetailPage() {
               {group.owner_name?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{group.owner_name}</div>
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {group.owner_name}
+              </div>
               <div className="text-xs text-gray-400">Owner</div>
             </div>
             <span className="text-xs bg-primary-50 text-primary-600 px-1.5 py-0.5 rounded">
@@ -447,7 +468,9 @@ export default function GroupDetailPage() {
         {group.description && (
           <div className="p-4 border-t border-gray-200">
             <h4 className="text-xs font-medium text-gray-500 mb-2">About</h4>
-            <p className="text-xs text-gray-600 leading-relaxed">{group.description}</p>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              {group.description}
+            </p>
           </div>
         )}
       </aside>

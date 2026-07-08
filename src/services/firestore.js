@@ -15,7 +15,9 @@ import {
   arrayRemove,
   increment,
 } from 'firebase/firestore'
-import { db } from '../firebase'
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
+import { db, storage } from '../firebase'
+
 
 // ─── COURSES ───────────────────────────────────────────────
 
@@ -265,14 +267,28 @@ export const getGroupMessages = async (groupId) => {
   })
 }
 
-export const sendGroupMessage = async (groupId, userId, userName, content) => {
-  await addDoc(collection(db, 'group_messages'), {
+export const sendGroupMessage = async (groupId, userId, userName, content, replyTo = null, imageUrl = null) => {
+  const messageData = {
     group_id: groupId,
     sender_id: userId,
     sender_name: userName,
-    content,
+    content: content || '',
+    image_url: imageUrl || null,
     sent_at: serverTimestamp(),
-  })
+  }
+
+  if (replyTo) {
+    messageData.reply_to = {
+      id: replyTo.id,
+      sender_name: replyTo.sender_name || 'Unknown',
+      content: replyTo.content || '',
+      image_url: replyTo.image_url || null,
+    }
+  } else {
+    messageData.reply_to = null
+  }
+
+  await addDoc(collection(db, 'group_messages'), messageData)
 }
 
 // ─── EVENTS ────────────────────────────────────────────────
@@ -552,9 +568,6 @@ export const deleteDirectMessage = async (messageId) => {
 }
 
 export const uploadChatImage = async (file, groupId) => {
-  const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage')
-  const { storage } = await import('../firebase')
-
   return new Promise((resolve, reject) => {
     const fileRef = ref(storage, `chat-images/${groupId}/${Date.now()}_${file.name}`)
     const uploadTask = uploadBytesResumable(fileRef, file)
@@ -562,7 +575,10 @@ export const uploadChatImage = async (file, groupId) => {
     uploadTask.on(
       'state_changed',
       null,
-      reject,
+      (error) => {
+        console.error('Storage upload error:', error)
+        reject(error)
+      },
       async () => {
         const url = await getDownloadURL(uploadTask.snapshot.ref)
         resolve(url)
@@ -570,3 +586,4 @@ export const uploadChatImage = async (file, groupId) => {
     )
   })
 }
+
