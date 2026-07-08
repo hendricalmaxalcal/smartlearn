@@ -165,41 +165,6 @@ export default function StudentDashboard() {
         <div className="space-y-6">
 
           {/* Upcoming events */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-medium text-gray-900">Upcoming events</h2>
-              <Link to="/app/announcements" className="text-sm text-primary-600 hover:underline">
-                View all
-              </Link>
-            </div>
-            {dashData.upcomingEvents.length ? (
-              <div className="space-y-2">
-                {dashData.upcomingEvents.map((event) => (
-                  <div key={event.id} className="card py-3">
-                    <div className="font-medium text-gray-900 text-sm">
-                      {event.title}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      📅 {event.event_date?.toDate
-                        ? event.event_date.toDate().toLocaleDateString('en-GB', {
-                            day: 'numeric', month: 'short', year: 'numeric'
-                          })
-                        : new Date(event.event_date).toLocaleDateString('en-GB', {
-                            day: 'numeric', month: 'short', year: 'numeric'
-                          })
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="card text-center py-6">
-                <div className="text-2xl mb-2">📅</div>
-                <p className="text-xs text-gray-400">No upcoming events</p>
-              </div>
-            )}
-          </div>
-
           {/* Quick links */}
           <div>
             <h2 className="text-base font-medium text-gray-900 mb-4">Quick links</h2>
