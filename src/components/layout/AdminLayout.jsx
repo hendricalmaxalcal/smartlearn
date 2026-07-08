@@ -12,7 +12,7 @@ const navItems = [
   { to: '/admin/announcements', label: 'Announcements',   icon: '📢' },
 ]
 
-export default function AdminLayout() {
+export default function AdminLayout() { 
   const { user } = useSelector((s) => s.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()

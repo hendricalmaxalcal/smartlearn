@@ -31,6 +31,7 @@ import AdminCourses       from './pages/admin/AdminCourses'
 import AdminUpload        from './pages/admin/AdminUpload'
 import AdminSubscriptions from './pages/admin/AdminSubscriptions'
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'
+import AnnouncementsPage from './pages/app/AnnouncementsPage'
 
 export default function App() {
   return (
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="groups/:id"    element={<GroupDetailPage />} />
           <Route path="messages"      element={<MessagingPage />} />
           <Route path="events"        element={<EventsPage />} />
+          <Route path="announcements"        element={<AnnouncementsPage />} />
         </Route>
 
         {/* Admin panel */}
