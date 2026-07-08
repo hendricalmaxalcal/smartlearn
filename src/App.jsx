@@ -23,7 +23,7 @@ import SocialFeedPage   from './pages/app/SocialFeedPage'
 import StudyGroupsPage  from './pages/app/StudyGroupsPage'
 import GroupDetailPage  from './pages/app/GroupDetailPage'
 import MessagingPage    from './pages/app/MessagingPage'
-import EventsPage       from './pages/app/EventsPage'
+// import EventsPage       from './pages/app/EventsPage'
 
 import AdminDashboard     from './pages/admin/AdminDashboard'
 import AdminUsers         from './pages/admin/AdminUsers'
@@ -74,7 +74,7 @@ export default function App() {
           <Route path="courses"       element={<AdminCourses />} />
           <Route path="upload"        element={<AdminUpload />} />
           <Route path="subscriptions" element={<AdminSubscriptions />} />
-          <Route path="events"        element={<EventsPage />} />
+          {/* <Route path="events"        element={<EventsPage />} /> */}
           <Route path="announcements" element={<AdminAnnouncements />} />
         </Route>
 
