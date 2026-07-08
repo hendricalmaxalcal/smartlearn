@@ -63,7 +63,6 @@ export default function App() {
           <Route path="groups"        element={<StudyGroupsPage />} />
           <Route path="groups/:id"    element={<GroupDetailPage />} />
           <Route path="messages"      element={<MessagingPage />} />
-          <Route path="events"        element={<EventsPage />} />
           <Route path="announcements"        element={<AnnouncementsPage />} />
         </Route>
 
@@ -75,6 +74,7 @@ export default function App() {
           <Route path="courses"       element={<AdminCourses />} />
           <Route path="upload"        element={<AdminUpload />} />
           <Route path="subscriptions" element={<AdminSubscriptions />} />
+          <Route path="events"        element={<EventsPage />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
         </Route>
 

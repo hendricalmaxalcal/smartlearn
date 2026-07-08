@@ -9,7 +9,7 @@ const nav = [
   { to: '/app/feed',       label: 'Social feed',  icon: '💬' },
   { to: '/app/groups',     label: 'Study groups', icon: '👥' },
   { to: '/app/messages',   label: 'Messages',     icon: '✉️' },
-  { to: '/app/announcements',     label: 'Announcements',       icon: '📅' },
+  { to: '/app/announcements',     label: 'Announcements',       icon: '📢' },
 ]
 
 export default function AppLayout() {
