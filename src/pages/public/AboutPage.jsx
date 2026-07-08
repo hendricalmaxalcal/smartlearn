@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 const TEAM = [
   {
-    name: 'Dr. Amina Hassan',
+    name: 'Eng. Albert Hendrical',
     role: 'Founder & CEO',
     stream: 'Science',
     avatar: 'AH',

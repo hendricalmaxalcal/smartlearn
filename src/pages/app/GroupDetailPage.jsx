@@ -11,7 +11,6 @@ import {
   deleteGroup as fbDeleteGroup,
   deleteGroupMessage,
 } from '../../services/firestore'
-
 import { uploadImage } from '../../services/cloudinary'
 
 export default function GroupDetailPage() {
@@ -85,28 +84,29 @@ export default function GroupDetailPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
- const handleSend = async (e) => {
-  e.preventDefault()
-  if (!message.trim() && !imageFile) return
+  const handleSend = async (e) => {
+    e.preventDefault()
+    if (!message.trim() && !imageFile) return
 
-  setUploading(true)
-  try {
-    let imageUrl = null
-    if (imageFile) {
-      toast.loading('Uploading image...', { id: 'upload' })
-      imageUrl = await uploadImage(imageFile, (progress) => {
-        console.log('Upload progress:', progress + '%')
-      })
-      toast.success('Image ready!', { id: 'upload' })
+    setUploading(true)
+    try {
+      let imageUrl = null
+      if (imageFile) {
+        toast.loading('Uploading image...', { id: 'upload' })
+        imageUrl = await uploadImage(imageFile, (progress) => {
+          console.log('Upload progress:', progress + '%')
+        })
+        toast.success('Image ready!', { id: 'upload' })
+      }
+      sendMessage.mutate({ content: message, replyTo, imageUrl })
+    } catch (err) {
+      console.error('Upload error:', err)
+      toast.error('Failed to upload image', { id: 'upload' })
+    } finally {
+      setUploading(false)
     }
-    sendMessage.mutate({ content: message, replyTo, imageUrl })
-  } catch (err) {
-    console.error('Upload error:', err)
-    toast.error('Failed to upload image', { id: 'upload' })
-  } finally {
-    setUploading(false)
   }
-}
+
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -214,7 +214,7 @@ export default function GroupDetailPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 bg-gray-50">
           {messagesLoading ? (
             <div className="text-center text-gray-400 text-sm py-8">
               Loading messages...
@@ -223,18 +223,21 @@ export default function GroupDetailPage() {
             messages.map((msg) => {
               const isMe = msg.sender_id === user?.id
               const isActive = activeMsgId === msg.id
+              const hasReply = !!msg.reply_to
               return (
                 <div
                   key={msg.id}
                   className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0 mt-1">
+                  <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium flex-shrink-0 mt-1">
                     {msg.sender_name?.charAt(0).toUpperCase()}
                   </div>
 
-                  <div className={`max-w-[75%] md:max-w-sm flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-
+                  <div
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                    style={{ maxWidth: 'calc(100% - 44px)' }}
+                  >
                     {/* Sender name */}
                     {!isMe && (
                       <span className="text-xs text-gray-500 mb-1 px-1 font-medium">
@@ -242,8 +245,8 @@ export default function GroupDetailPage() {
                       </span>
                     )}
 
-                    {/* Message bubble */}
-                    <div className="flex items-end gap-1">
+                    {/* Message bubble row */}
+                    <div className="flex items-end gap-1 w-full">
                       {isMe && (
                         <button
                           onClick={() => setActiveMsgId(isActive ? null : msg.id)}
@@ -253,29 +256,48 @@ export default function GroupDetailPage() {
                         </button>
                       )}
 
+                      {/* Bubble */}
                       <div
                         className={`rounded-2xl text-sm overflow-hidden ${
                           isMe
                             ? 'bg-primary-600 text-white rounded-tr-sm'
                             : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
                         }`}
+                        style={{
+                          minWidth: hasReply ? '180px' : 'auto',
+                          maxWidth: '100%',
+                        }}
                       >
                         {/* Reply preview inside bubble */}
-                        {msg.reply_to && (
-                          <div className={`px-3 pt-2 pb-1 border-b ${
-                            isMe
-                              ? 'border-primary-500 bg-primary-700'
-                              : 'border-gray-100 bg-gray-50'
-                          }`}>
-                            <div className={`text-xs font-medium mb-0.5 ${
+                        {hasReply && (
+                          <div
+                            className={`px-3 pt-2 pb-2 border-b ${
+                              isMe
+                                ? 'border-primary-500 bg-primary-700'
+                                : 'border-gray-100 bg-gray-50'
+                            }`}
+                          >
+                            <div className={`text-xs font-semibold mb-0.5 flex items-center gap-1 ${
                               isMe ? 'text-primary-200' : 'text-primary-600'
                             }`}>
-                              ↩ {msg.reply_to.sender_name}
+                              <span>↩</span>
+                              <span>{msg.reply_to.sender_name}</span>
                             </div>
-                            <div className={`text-xs truncate ${
-                              isMe ? 'text-primary-200' : 'text-gray-500'
-                            }`}>
-                              {msg.reply_to.image_url ? '📷 Image' : msg.reply_to.content}
+                            <div
+                              className={`text-xs ${
+                                isMe ? 'text-primary-200' : 'text-gray-500'
+                              }`}
+                              style={{
+                                wordBreak: 'break-word',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {msg.reply_to.image_url
+                                ? '📷 Image'
+                                : msg.reply_to.content}
                             </div>
                           </div>
                         )}
@@ -285,15 +307,24 @@ export default function GroupDetailPage() {
                           <img
                             src={msg.image_url}
                             alt="shared"
-                            className="max-w-full cursor-pointer"
-                            style={{ maxHeight: '220px', objectFit: 'cover', width: '100%' }}
+                            className="max-w-full cursor-pointer block"
+                            style={{
+                              maxHeight: '200px',
+                              objectFit: 'cover',
+                              width: '100%',
+                            }}
                             onClick={() => window.open(msg.image_url, '_blank')}
                           />
                         )}
 
                         {/* Text */}
                         {msg.content && (
-                          <div className="px-4 py-2.5">{msg.content}</div>
+                          <div
+                            className="px-3 py-2 md:px-4 md:py-2.5"
+                            style={{ wordBreak: 'break-word' }}
+                          >
+                            {msg.content}
+                          </div>
                         )}
                       </div>
 
@@ -353,8 +384,8 @@ export default function GroupDetailPage() {
 
             {/* Reply preview bar */}
             {replyTo && (
-              <div className="px-4 pt-3 flex items-start gap-2">
-                <div className="flex-1 bg-gray-50 border-l-4 border-primary-400 rounded-lg px-3 py-2">
+              <div className="px-3 pt-3 flex items-start gap-2">
+                <div className="flex-1 bg-gray-50 border-l-4 border-primary-400 rounded-lg px-3 py-2 min-w-0">
                   <div className="text-xs font-medium text-primary-600 mb-0.5">
                     ↩ Replying to {replyTo.sender_name}
                   </div>
@@ -373,12 +404,12 @@ export default function GroupDetailPage() {
 
             {/* Image preview */}
             {imagePreview && (
-              <div className="px-4 pt-3 flex items-start gap-2">
+              <div className="px-3 pt-3 flex items-start gap-2">
                 <div className="relative inline-block">
                   <img
                     src={imagePreview}
                     alt="preview"
-                    className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                    className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg border border-gray-200"
                   />
                   <button
                     onClick={() => {
@@ -391,7 +422,7 @@ export default function GroupDetailPage() {
                     ✕
                   </button>
                 </div>
-                <div className="text-xs text-gray-500 self-end pb-1">
+                <div className="text-xs text-gray-500 self-end pb-1 truncate max-w-32">
                   {imageFile?.name}
                 </div>
               </div>
@@ -417,7 +448,7 @@ export default function GroupDetailPage() {
 
               <input
                 ref={inputRef}
-                className="input flex-1"
+                className="input flex-1 text-sm"
                 placeholder="Type a message..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -425,7 +456,7 @@ export default function GroupDetailPage() {
 
               <button
                 type="submit"
-                className="btn-primary px-4 md:px-6 flex-shrink-0"
+                className="btn-primary px-3 md:px-6 flex-shrink-0 text-sm"
                 disabled={(!message.trim() && !imageFile) || sendMessage.isPending || uploading}
               >
                 {uploading ? '⏳' : 'Send'}
