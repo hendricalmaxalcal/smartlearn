@@ -11,17 +11,229 @@
   .btn-primary {
     @apply bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors cursor-pointer;
   }
+
   .btn-outline {
     @apply border border-gray-300 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer;
   }
+
   .input {
-    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white;
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white text-gray-900;
   }
+
   .card {
     @apply bg-white border border-gray-200 rounded-xl p-5;
   }
+
   .badge-science  { @apply bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full; }
   .badge-arts     { @apply bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full; }
   .badge-business { @apply bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full; }
   .badge-premium  { @apply bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded-full; }
 }
+
+/* ─── DARK MODE ──────────────────────────────────────────── */
+
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* ─── Buttons ─── */
+.dark .btn-outline {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .btn-outline:hover {
+  background-color: #334155 !important;
+}
+
+/* ─── Inputs ─── */
+.dark .input {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .input::placeholder { color: #64748b !important; }
+
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="search"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark textarea {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark textarea::placeholder { color: #64748b !important; }
+
+.dark select {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark select option {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* ─── Cards ─── */
+.dark .card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* ─── Backgrounds ─── */
+.dark .bg-white    { background-color: #1e293b !important; }
+.dark .bg-gray-50  { background-color: #0f172a !important; }
+.dark .bg-gray-100 { background-color: #1e293b !important; }
+.dark .bg-gray-200 { background-color: #334155 !important; }
+
+/* ─── Text ─── */
+.dark .text-gray-900 { color: #f1f5f9 !important; }
+.dark .text-gray-800 { color: #e2e8f0 !important; }
+.dark .text-gray-700 { color: #e2e8f0 !important; }
+.dark .text-gray-600 { color: #cbd5e1 !important; }
+.dark .text-gray-500 { color: #94a3b8 !important; }
+.dark .text-gray-400 { color: #64748b !important; }
+
+/* ─── Borders ─── */
+.dark .border-gray-200 { border-color: #334155 !important; }
+.dark .border-gray-100 { border-color: #1e293b !important; }
+.dark .border-gray-300 { border-color: #475569 !important; }
+
+/* ─── Layout ─── */
+.dark nav   { background-color: #1e293b !important; border-color: #334155 !important; }
+.dark aside { background-color: #1e293b !important; border-color: #334155 !important; }
+.dark main  { background-color: #0f172a !important; }
+
+/* ─── Tables ─── */
+.dark table          { background-color: #1e293b !important; }
+.dark thead          { background-color: #0f172a !important; }
+.dark tbody tr       { border-color: #334155 !important; }
+.dark tbody tr:hover { background-color: #334155 !important; }
+
+/* ─── Hover states ─── */
+.dark .hover\:bg-gray-50:hover  { background-color: #334155 !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #334155 !important; }
+
+/* ─── Links and bordered elements ─── */
+.dark a.border,
+.dark .border.rounded-lg {
+  border-color: #334155 !important;
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+.dark a.flex.items-center.gap-3 {
+  color: #e2e8f0 !important;
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.dark a.flex.items-center.gap-3:hover {
+  background-color: #334155 !important;
+}
+
+/* ─── Modals ─── */
+.dark .fixed .card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* ─── Progress bars ─── */
+.dark .bg-gray-100.rounded-full { background-color: #334155 !important; }
+
+/* ─── Chat backgrounds ─── */
+.dark .bg-gray-50.flex-1 { background-color: #0f172a !important; }
+
+/* ─── Colored backgrounds ─── */
+.dark .bg-primary-50  { background-color: #1e1b4b !important; }
+.dark .bg-primary-100 { background-color: #1e1b4b !important; }
+.dark .bg-green-50    { background-color: #052e16 !important; }
+.dark .bg-amber-50    { background-color: #1c1004 !important; }
+.dark .bg-blue-50     { background-color: #0c1a2e !important; }
+.dark .bg-red-50      { background-color: #1c0a0a !important; }
+.dark .bg-purple-50   { background-color: #1a0c2e !important; }
+.dark .bg-emerald-50  { background-color: #052e16 !important; }
+
+/* ─── Colored text ─── */
+.dark .text-primary-600 { color: #818cf8 !important; }
+.dark .text-primary-800 { color: #a5b4fc !important; }
+.dark .text-green-600   { color: #86efac !important; }
+.dark .text-green-700   { color: #86efac !important; }
+.dark .text-amber-600   { color: #fcd34d !important; }
+.dark .text-amber-700   { color: #fcd34d !important; }
+.dark .text-blue-600    { color: #93c5fd !important; }
+.dark .text-blue-700    { color: #93c5fd !important; }
+.dark .text-red-600     { color: #fca5a5 !important; }
+.dark .text-red-700     { color: #fca5a5 !important; }
+.dark .text-emerald-600 { color: #6ee7b7 !important; }
+.dark .text-emerald-800 { color: #6ee7b7 !important; }
+
+/* ─── Primary stays colored ─── */
+.dark .bg-primary-600 { background-color: #534AB7 !important; }
+.dark .bg-primary-800 { background-color: #3D3789 !important; }
+
+/* ─── BADGES — fixed for dark mode ─── */
+.dark .badge-science {
+  background-color: #064e3b !important;
+  color: #6ee7b7 !important;
+  border: 1px solid #065f46 !important;
+}
+
+.dark .badge-arts {
+  background-color: #1e3a5f !important;
+  color: #93c5fd !important;
+  border: 1px solid #1d4ed8 !important;
+}
+
+.dark .badge-business {
+  background-color: #451a03 !important;
+  color: #fcd34d !important;
+  border: 1px solid #92400e !important;
+}
+
+.dark .badge-premium {
+  background-color: #450a0a !important;
+  color: #fca5a5 !important;
+  border: 1px solid #991b1b !important;
+}
+
+/* ─── Form level badge (purple) in groups ─── */
+.dark .bg-primary-50.text-primary-800 {
+  background-color: #1e1b4b !important;
+  color: #a5b4fc !important;
+  border: 1px solid #3730a3 !important;
+}
+
+/* ─── Emerald/green badges ─── */
+.dark .bg-emerald-100 { background-color: #064e3b !important; }
+.dark .text-emerald-800 { color: #6ee7b7 !important; }
+
+/* ─── Blue badges ─── */
+.dark .bg-blue-100 { background-color: #1e3a5f !important; }
+.dark .text-blue-800 { color: #93c5fd !important; }
+
+/* ─── Amber badges ─── */
+.dark .bg-amber-100 { background-color: #451a03 !important; }
+.dark .text-amber-800 { color: #fcd34d !important; }
+
+/* ─── Red badges ─── */
+.dark .bg-red-100 { background-color: #450a0a !important; }
+.dark .text-red-800 { color: #fca5a5 !important; }
+
+/* ─── Green badges ─── */
+.dark .bg-green-100 { background-color: #052e16 !important; }
+.dark .text-green-700 { color: #86efac !important; }
+.dark .text-green-800 { color: #86efac !important; }

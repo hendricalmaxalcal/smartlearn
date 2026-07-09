@@ -8,6 +8,7 @@ import './index.css'
 import { auth } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { fetchMe, setInitialized } from './store/authSlice'
+import { ThemeProvider } from './context/ThemeContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </QueryClientProvider>
     </Provider>
   </React.StrictMode>
