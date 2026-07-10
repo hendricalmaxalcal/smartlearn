@@ -47,7 +47,7 @@ export const AdminOnlyRoute = ({ children }) => {
 
   if (!user) return <Navigate to="/login" replace />
   if (user.role?.toLowerCase() !== 'admin') {
-    return <Navigate to="/app/dashboard" replace />
+    return <Navigate to="/admin/dashboard" replace />
   }
 
   return children

@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
+import { getDocs, collection, query, orderBy } from 'firebase/firestore'
+import { db } from '../../firebase'
 import {
-  getCourses,
   createCourse,
   updateCourse,
   deleteCourse,
 } from '../../services/firestore'
-import { getDocs, collection, query, orderBy } from 'firebase/firestore'
-import { db } from '../../firebase'
 
 export default function AdminCourses() {
   const { user } = useSelector((s) => s.auth)
@@ -28,7 +27,6 @@ export default function AdminCourses() {
   const { data: courses, isLoading } = useQuery({
     queryKey: ['admin-courses'],
     queryFn: async () => {
-      // Fetch ALL courses including drafts
       const snapshot = await getDocs(
         query(collection(db, 'courses'), orderBy('created_at', 'desc'))
       )
@@ -69,8 +67,12 @@ export default function AdminCourses() {
   })
 
   const resetForm = () => setForm({
-    title: '', description: '', form_level: 'form1',
-    stream: 'science', is_premium: false, is_published: false,
+    title: '',
+    description: '',
+    form_level: 'form1',
+    stream: 'science',
+    is_premium: false,
+    is_published: false,
   })
 
   const handleSubmit = (e) => {
@@ -213,7 +215,7 @@ export default function AdminCourses() {
         </div>
       )}
 
-      {/* Courses table with horizontal scroll on mobile */}
+      {/* Courses list */}
       {isLoading ? (
         <div className="space-y-3">
           {[1,2,3].map((i) => (
@@ -222,7 +224,9 @@ export default function AdminCourses() {
         </div>
       ) : courses?.length ? (
         <div className="card p-0 overflow-hidden">
-          <div className="overflow-x-auto">
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
@@ -238,12 +242,8 @@ export default function AdminCourses() {
                 {courses.map((course) => (
                   <tr key={course.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-3 min-w-[180px]">
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {course.title}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                        {course.description}
-                      </div>
+                      <div className="font-medium text-gray-900 dark:text-white">{course.title}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{course.description}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`badge-${course.stream}`}>{course.stream}</span>
@@ -294,15 +294,70 @@ export default function AdminCourses() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-700">
+            {courses.map((course) => (
+              <div key={course.id} className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="font-medium text-gray-900 dark:text-white text-sm leading-snug flex-1">
+                    {course.title}
+                  </h3>
+                  <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    course.is_published
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  }`}>
+                    {course.is_published ? 'Published' : 'Draft'}
+                  </span>
+                </div>
+
+                {course.description && (
+                  <p className="text-xs text-gray-400 mb-2 line-clamp-2">{course.description}</p>
+                )}
+
+                <div className="flex gap-1 flex-wrap mb-3">
+                  <span className={`badge-${course.stream}`}>{course.stream}</span>
+                  <span className="bg-primary-50 text-primary-800 text-xs px-2 py-0.5 rounded-full">
+                    {course.form_level?.replace('form', 'Form ')}
+                  </span>
+                  {course.is_premium ? (
+                    <span className="badge-premium">Premium</span>
+                  ) : (
+                    <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+                      Free
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => startEdit(course)}
+                    className="flex-1 text-xs text-primary-600 border border-primary-200 dark:border-primary-800 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete "${course.title}"?`)) {
+                        remove.mutate(course.id)
+                      }
+                    }}
+                    className="flex-1 text-xs text-red-600 border border-red-200 dark:border-red-800 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       ) : (
         <div className="text-center py-16">
           <div className="text-4xl mb-3">📚</div>
           <p className="text-gray-500 dark:text-gray-400 mb-4">No courses yet</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="btn-primary"
-          >
+          <button onClick={() => setShowCreate(true)} className="btn-primary">
             Create your first course
           </button>
         </div>

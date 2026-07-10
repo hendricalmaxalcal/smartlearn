@@ -237,3 +237,14 @@
 .dark .bg-green-100 { background-color: #052e16 !important; }
 .dark .text-green-700 { color: #86efac !important; }
 .dark .text-green-800 { color: #86efac !important; }
+
+/* Mobile table scroll fix */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+  min-width: 500px;
+  width: 100%;
+}

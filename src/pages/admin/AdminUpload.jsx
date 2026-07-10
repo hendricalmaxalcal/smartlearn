@@ -4,12 +4,15 @@ import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../firebase'
+import { getDocs, collection, query, orderBy } from 'firebase/firestore'
+import { db } from '../../firebase'
 import {
-  getCourses,
   getChapters,
   createChapter,
   createResource,
   getResources,
+  deleteChapter,
+  deleteResource,
 } from '../../services/firestore'
 
 export default function AdminUpload() {
@@ -23,7 +26,7 @@ export default function AdminUpload() {
   const [showNewChapter, setShowNewChapter] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
-  const [noteMode, setNoteMode] = useState('write') // 'write' or 'upload'
+  const [noteMode, setNoteMode] = useState('write')
   const [form, setForm] = useState({
     title: '',
     type: 'video',
@@ -35,8 +38,6 @@ export default function AdminUpload() {
   const { data: courses } = useQuery({
     queryKey: ['admin-courses-list'],
     queryFn: async () => {
-      const { getDocs, collection, query, orderBy } = await import('firebase/firestore')
-      const { db } = await import('../../firebase')
       const snapshot = await getDocs(
         query(collection(db, 'courses'), orderBy('created_at', 'desc'))
       )
@@ -68,6 +69,28 @@ export default function AdminUpload() {
       toast.success('Chapter created!')
     },
     onError: () => toast.error('Failed to create chapter'),
+  })
+
+  const removeChapter = useMutation({
+    mutationFn: (chapterId) => deleteChapter(chapterId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chapters', selectedCourse])
+      queryClient.invalidateQueries(['resources', selectedChapter])
+      if (selectedChapter === removeChapter.variables) {
+        setSelectedChapter('')
+      }
+      toast.success('Chapter deleted!')
+    },
+    onError: () => toast.error('Failed to delete chapter'),
+  })
+
+  const removeResource = useMutation({
+    mutationFn: (resourceId) => deleteResource(resourceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['resources', selectedChapter])
+      toast.success('Material deleted!')
+    },
+    onError: () => toast.error('Failed to delete material'),
   })
 
   const handleFileUpload = async (file) => {
@@ -111,14 +134,12 @@ export default function AdminUpload() {
       let noteContent = null
 
       if (form.type === 'note' && noteMode === 'write') {
-        // Save note content directly
         if (!form.content.trim()) {
           toast.error('Please write some content for the note')
           return
         }
         noteContent = form.content
       } else {
-        // Upload file
         const file = fileInputRef.current?.files?.[0]
         if (file) {
           toast.loading('Uploading file...', { id: 'upload' })
@@ -159,8 +180,8 @@ export default function AdminUpload() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Upload form */}
-        <div>
+        {/* Left — Upload form */}
+        <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Step 1 — Select course */}
@@ -181,7 +202,7 @@ export default function AdminUpload() {
               </select>
             </div>
 
-            {/* Step 2 — Select or create chapter */}
+            {/* Step 2 — Chapters */}
             {selectedCourse && (
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -216,17 +237,40 @@ export default function AdminUpload() {
                   </div>
                 )}
 
-                <select
-                  className="input"
-                  value={selectedChapter}
-                  onChange={(e) => setSelectedChapter(e.target.value)}
-                  required
-                >
-                  <option value="">Choose a chapter...</option>
+                {/* Chapter list with delete */}
+                <div className="space-y-1 mb-2">
                   {(chapters || []).map((ch) => (
-                    <option key={ch.id} value={ch.id}>{ch.title}</option>
+                    <div
+                      key={ch.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                        selectedChapter === ch.id
+                          ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-primary-200'
+                      }`}
+                      onClick={() => setSelectedChapter(ch.id)}
+                    >
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">
+                        {ch.title}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (window.confirm(`Delete chapter "${ch.title}" and all its materials?`)) {
+                            removeChapter.mutate(ch.id)
+                          }
+                        }}
+                        className="text-gray-300 hover:text-red-500 text-xs flex-shrink-0 transition-colors"
+                        title="Delete chapter"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   ))}
-                </select>
+                  {!chapters?.length && (
+                    <p className="text-xs text-gray-400 px-1">No chapters yet — create one above</p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -289,7 +333,7 @@ export default function AdminUpload() {
                         className={`border-2 rounded-xl p-3 text-center transition-all ${
                           noteMode === 'write'
                             ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-500'
                         }`}
                       >
                         <span className="block text-2xl mb-1">✍️</span>
@@ -302,7 +346,7 @@ export default function AdminUpload() {
                         className={`border-2 rounded-xl p-3 text-center transition-all ${
                           noteMode === 'upload'
                             ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-500'
                         }`}
                       >
                         <span className="block text-2xl mb-1">📁</span>
@@ -313,7 +357,7 @@ export default function AdminUpload() {
                   </div>
                 )}
 
-                {/* Write notes textarea */}
+                {/* Write notes */}
                 {isNoteType && noteMode === 'write' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -321,14 +365,8 @@ export default function AdminUpload() {
                     </label>
                     <textarea
                       className="input resize-none font-mono text-xs"
-                      rows={12}
-                      placeholder="Write your notes here...
-
-You can use:
-- Bullet points
-- Numbered lists
-- Headings with caps
-- Any formatting you like"
+                      rows={10}
+                      placeholder="Write your notes here..."
                       value={form.content}
                       onChange={(e) => setForm({ ...form, content: e.target.value })}
                       required
@@ -347,10 +385,10 @@ You can use:
                     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center hover:border-primary-300 transition-colors">
                       <div className="text-3xl mb-2">📁</div>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        Drag & drop or click to browse
+                        Click to browse files
                       </p>
                       <p className="text-xs text-gray-400 mb-3">
-                        {form.type === 'video' ? 'MP4, MOV, AVI — max 500MB' :
+                        {form.type === 'video' ? 'MP4, MOV — max 500MB' :
                          form.type === 'pdf'   ? 'PDF — max 50MB' :
                          form.type === 'note'  ? 'PDF, DOCX — max 20MB' :
                          'PPTX, PDF — max 50MB'}
@@ -366,16 +404,15 @@ You can use:
                           '.pptx,.pdf'
                         }
                       />
-                      <label
-                        htmlFor="file-input"
+                      <button
+                        type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="btn-outline text-xs px-4 py-1.5 cursor-pointer"
+                        className="btn-outline text-xs px-4 py-1.5"
                       >
                         Browse files
-                      </label>
+                      </button>
                     </div>
 
-                    {/* Upload progress */}
                     {uploading && (
                       <div className="mt-2">
                         <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -421,65 +458,68 @@ You can use:
           </form>
         </div>
 
-        {/* Recently uploaded */}
+        {/* Right — Materials list with delete */}
         <div>
           <h3 className="text-base font-medium text-gray-900 dark:text-white mb-3">
             {selectedChapter ? 'Materials in this chapter' : 'Select a chapter to see materials'}
           </h3>
 
           {recentResources?.length ? (
-            <div className="card p-0 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                  <tr>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">Title</th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">Type</th>
-                    <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentResources.map((r) => (
-                    <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-4 py-2 truncate max-w-40">
-                        <div className="font-medium text-gray-900 dark:text-white truncate flex items-center gap-1">
-                          <span>
-                            {r.type === 'video' ? '▶️' :
-                             r.type === 'pdf'   ? '📄' :
-                             r.type === 'note'  ? '📝' : '📊'}
-                          </span>
-                          {r.title}
-                        </div>
-                        {r.note_content && (
-                          <div className="text-xs text-gray-400 truncate mt-0.5">
-                            {r.note_content.substring(0, 50)}...
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full capitalize">
-                          {r.type}
-                          {r.note_content ? ' (written)' : ''}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          r.is_published
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                        }`}>
-                          {r.is_published ? 'Live' : 'Draft'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-2">
+              {recentResources.map((r) => (
+                <div
+                  key={r.id}
+                  className="card py-3 px-4 flex items-start gap-3"
+                >
+                  <span className="text-xl flex-shrink-0">
+                    {r.type === 'video' ? '▶️' :
+                     r.type === 'pdf'   ? '📄' :
+                     r.type === 'note'  ? '📝' : '📊'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                      {r.title}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full capitalize">
+                        {r.type}{r.note_content ? ' (written)' : ''}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        r.is_published
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        {r.is_published ? 'Live' : 'Draft'}
+                      </span>
+                    </div>
+                    {r.note_content && (
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                        {r.note_content.substring(0, 60)}...
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete "${r.title}"?`)) {
+                        removeResource.mutate(r.id)
+                      }
+                    }}
+                    disabled={removeResource.isPending}
+                    className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors text-sm"
+                    title="Delete material"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="card text-center py-10">
               <div className="text-4xl mb-3">📂</div>
               <p className="text-gray-400 dark:text-gray-500 text-sm">
-                {selectedChapter ? 'No materials in this chapter yet' : 'Select a course and chapter first'}
+                {selectedChapter
+                  ? 'No materials in this chapter yet'
+                  : 'Select a course and chapter first'}
               </p>
             </div>
           )}

@@ -4,20 +4,26 @@ import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../store/authSlice'
 import ThemeToggle from '../common/ThemeToggle'
 
-const nav = [
-  { to: '/app/dashboard',       label: 'Dashboard',      icon: '🏠' },
-  { to: '/app/my-courses',      label: 'My courses',     icon: '📚' },
-  { to: '/app/feed',            label: 'Social feed',    icon: '💬' },
-  { to: '/app/groups',          label: 'Study groups',   icon: '👥' },
-  { to: '/app/messages',        label: 'Messages',       icon: '✉️' },
-  { to: '/app/announcements',   label: 'Announcements',  icon: '📢' },
-]
-
 export default function AppLayout() {
   const { user } = useSelector((s) => s.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const isTeacher = user?.role?.toLowerCase() === 'teacher'
+
+  const nav = [
+    { to: '/app/dashboard',      label: 'Dashboard',     icon: '🏠' },
+    { to: '/app/my-courses',     label: 'My courses',    icon: '📚' },
+    ...(isTeacher ? [
+      { to: '/app/events',       label: 'Events',        icon: '📅' },
+    ] : []),
+    { to: '/app/feed',           label: 'Social feed',   icon: '💬' },
+    { to: '/app/groups',         label: 'Study groups',  icon: '👥' },
+    { to: '/app/messages',       label: 'Messages',      icon: '✉️' },
+    { to: '/app/announcements',  label: 'Announcements', icon: '📢' },
+    { to: '/app/profile',        label: 'Profile',       icon: '👤' },
+  ]
 
   const handleLogout = () => {
     dispatch(logout())
@@ -27,20 +33,18 @@ export default function AppLayout() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 dark:bg-gray-900">
 
-      {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <span className="font-medium text-gray-900 dark:text-white">
           <span className="text-primary-600">Smart</span>Learn
         </span>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="text-gray-600 dark:text-gray-300 text-xl"
+          className="text-gray-600 dark:text-gray-300 text-xl p-1"
         >
           {menuOpen ? '✕' : '☰'}
         </button>
       </div>
 
-      {/* Sidebar */}
       <aside className={`
         md:w-52 md:flex md:flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
         ${menuOpen ? 'flex flex-col' : 'hidden'}

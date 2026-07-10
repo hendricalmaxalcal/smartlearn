@@ -14,6 +14,7 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
+  setDoc,
 } from 'firebase/firestore'
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase'
@@ -613,4 +614,106 @@ export const uploadChatImage = async (file, groupId) => {
     )
   })
 }
+
+export const deleteChapter = async (chapterId) => {
+  const resourcesSnapshot = await getDocs(
+    query(collection(db, 'resources'), where('chapter_id', '==', chapterId))
+  )
+  await Promise.all(
+    resourcesSnapshot.docs.map((d) => deleteDoc(doc(db, 'resources', d.id)))
+  )
+  await deleteDoc(doc(db, 'chapters', chapterId))
+}
+
+// ─── PROGRESS ──────────────────────────────────────────────
+
+export const markResourceComplete = async (userId, courseId, resourceId) => {
+  const progressRef = doc(db, 'course_progress', `${userId}_${resourceId}`)
+  await setDoc(progressRef, {
+    user_id: userId,
+    course_id: courseId,
+    resource_id: resourceId,
+    completed: true,
+    completed_at: serverTimestamp(),
+  })
+}
+
+export const getCourseProgress = async (userId, courseId) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'course_progress'),
+      where('user_id', '==', userId),
+      where('course_id', '==', courseId)
+    )
+  )
+  return snapshot.docs.map((d) => d.data().resource_id)
+}
+
+export const getMyCoursesWithProgress = async (userId) => {
+  const snapshot = await getDocs(
+    query(collection(db, 'enrollments'), where('user_id', '==', userId))
+  )
+
+  const seen = new Set()
+  const uniqueCourseIds = []
+  for (const d of snapshot.docs) {
+    const cid = d.data().course_id
+    if (!seen.has(cid)) {
+      seen.add(cid)
+      uniqueCourseIds.push(cid)
+    }
+  }
+
+  if (!uniqueCourseIds.length) return []
+
+  const courses = await Promise.all(
+    uniqueCourseIds.map(async (id) => {
+      const courseDoc = await getDoc(doc(db, 'courses', id))
+      if (!courseDoc.exists()) return null
+      const course = { id: courseDoc.id, ...courseDoc.data() }
+
+      const chaptersSnapshot = await getDocs(
+        query(collection(db, 'chapters'), where('course_id', '==', id))
+      )
+      const chapters = chaptersSnapshot.docs.map((ch) => ({ id: ch.id, ...ch.data() }))
+
+      const allResources = []
+      for (const ch of chapters) {
+        const resourcesSnapshot = await getDocs(
+          query(collection(db, 'resources'), where('chapter_id', '==', ch.id))
+        )
+        allResources.push(...resourcesSnapshot.docs.map((r) => r.id))
+      }
+
+      const progressSnapshot = await getDocs(
+        query(
+          collection(db, 'course_progress'),
+          where('user_id', '==', userId),
+          where('course_id', '==', id)
+        )
+      )
+      const completedIds = progressSnapshot.docs.map((d) => d.data().resource_id)
+
+      const totalResources = allResources.length
+      const completedCount = allResources.filter((rid) => completedIds.includes(rid)).length
+      const progress = totalResources > 0
+        ? Math.round((completedCount / totalResources) * 100)
+        : 0
+
+      return {
+        ...course,
+        progress,
+        total_resources: totalResources,
+        completed_resources: completedCount,
+      }
+    })
+  )
+  return courses.filter(Boolean)
+}
+// ─── PROGRESS ──────────────────────────────────────────────
+
+
+
+
+
 
