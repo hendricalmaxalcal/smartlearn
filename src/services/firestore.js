@@ -19,6 +19,8 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase'
 
 
+
+
 // ─── COURSES ───────────────────────────────────────────────
 
 export const getCourses = async (filters = {}) => {
@@ -63,6 +65,18 @@ export const getCourseBySlug = async (slug) => {
 }
 
 export const enrollInCourse = async (userId, courseId) => {
+  const existing = await getDocs(
+    query(
+      collection(db, 'enrollments'),
+      where('user_id', '==', userId),
+      where('course_id', '==', courseId)
+    )
+  )
+
+  if (!existing.empty) {
+    throw new Error('Already enrolled')
+  }
+
   await addDoc(collection(db, 'enrollments'), {
     user_id: userId,
     course_id: courseId,
@@ -74,10 +88,23 @@ export const getMyCourses = async (userId) => {
   const snapshot = await getDocs(
     query(collection(db, 'enrollments'), where('user_id', '==', userId))
   )
-  const courseIds = snapshot.docs.map((d) => d.data().course_id)
-  if (!courseIds.length) return []
+
+  const docs = snapshot.docs.map((d) => d.data())
+
+  // Deduplicate by course_id
+  const seen = new Set()
+  const uniqueCourseIds = []
+  for (const d of docs) {
+    if (!seen.has(d.course_id)) {
+      seen.add(d.course_id)
+      uniqueCourseIds.push(d.course_id)
+    }
+  }
+
+  if (!uniqueCourseIds.length) return []
+
   const courses = await Promise.all(
-    courseIds.map(async (id) => {
+    uniqueCourseIds.map(async (id) => {
       const courseDoc = await getDoc(doc(db, 'courses', id))
       if (!courseDoc.exists()) return null
       return { id: courseDoc.id, ...courseDoc.data(), progress: 0 }

@@ -32,17 +32,22 @@ export default function CourseCatalogPage() {
   })
 
   const handleEnroll = async (course) => {
-    if (!user) {
-      navigate('/register')
-      return
-    }
-    try {
-      await enrollInCourse(user.id, course.id)
-      toast.success(`Enrolled in ${course.title}!`)
+  if (!user) {
+    navigate('/register')
+    return
+  }
+  try {
+    await enrollInCourse(user.id, course.id)
+    toast.success(`Enrolled in ${course.title}!`)
+    navigate('/app/my-courses')
+  } catch (err) {
+    if (err.message === 'Already enrolled') {
+      toast.error('You are already enrolled in this course')
       navigate('/app/my-courses')
-    } catch {
+    } else {
       toast.error('Failed to enroll')
     }
+  }
   }
 
   return (

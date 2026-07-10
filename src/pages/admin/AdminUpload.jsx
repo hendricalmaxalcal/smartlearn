@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
@@ -15,22 +15,33 @@ import {
 export default function AdminUpload() {
   const { user } = useSelector((s) => s.auth)
   const queryClient = useQueryClient()
+  const fileInputRef = useRef(null)
+
   const [selectedCourse, setSelectedCourse] = useState('')
   const [selectedChapter, setSelectedChapter] = useState('')
   const [newChapterName, setNewChapterName] = useState('')
   const [showNewChapter, setShowNewChapter] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [noteMode, setNoteMode] = useState('write') // 'write' or 'upload'
   const [form, setForm] = useState({
     title: '',
     type: 'video',
+    content: '',
     is_published: true,
     order_index: 0,
   })
 
   const { data: courses } = useQuery({
     queryKey: ['admin-courses-list'],
-    queryFn: () => getCourses({}),
+    queryFn: async () => {
+      const { getDocs, collection, query, orderBy } = await import('firebase/firestore')
+      const { db } = await import('../../firebase')
+      const snapshot = await getDocs(
+        query(collection(db, 'courses'), orderBy('created_at', 'desc'))
+      )
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+    },
     retry: false,
   })
 
@@ -49,11 +60,7 @@ export default function AdminUpload() {
   })
 
   const addChapter = useMutation({
-    mutationFn: () => createChapter(
-      selectedCourse,
-      newChapterName,
-      chapters?.length || 0
-    ),
+    mutationFn: () => createChapter(selectedCourse, newChapterName, chapters?.length || 0),
     onSuccess: () => {
       queryClient.invalidateQueries(['chapters', selectedCourse])
       setNewChapterName('')
@@ -69,18 +76,13 @@ export default function AdminUpload() {
     setUploadProgress(0)
 
     return new Promise((resolve, reject) => {
-      const fileRef = ref(
-        storage,
-        `resources/${selectedCourse}/${Date.now()}_${file.name}`
-      )
+      const fileRef = ref(storage, `resources/${selectedCourse}/${Date.now()}_${file.name}`)
       const uploadTask = uploadBytesResumable(fileRef, file)
 
       uploadTask.on(
         'state_changed',
         (snapshot) => {
-          const progress = Math.round(
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-          )
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
           setUploadProgress(progress)
         },
         (error) => {
@@ -104,44 +106,58 @@ export default function AdminUpload() {
       return
     }
 
-    const fileInput = document.getElementById('file-input')
-    const file = fileInput?.files?.[0]
-    let fileUrl = null
-
-    if (file) {
-      fileUrl = await handleFileUpload(file)
-      if (!fileUrl) return
-    }
-
     try {
+      let fileUrl = null
+      let noteContent = null
+
+      if (form.type === 'note' && noteMode === 'write') {
+        // Save note content directly
+        if (!form.content.trim()) {
+          toast.error('Please write some content for the note')
+          return
+        }
+        noteContent = form.content
+      } else {
+        // Upload file
+        const file = fileInputRef.current?.files?.[0]
+        if (file) {
+          toast.loading('Uploading file...', { id: 'upload' })
+          fileUrl = await handleFileUpload(file)
+          toast.success('File uploaded!', { id: 'upload' })
+        }
+      }
+
       await createResource({
         ...form,
         chapter_id: selectedChapter,
         course_id: selectedCourse,
         file_url: fileUrl,
+        note_content: noteContent,
         uploaded_by: user.id,
       })
+
       queryClient.invalidateQueries(['resources', selectedChapter])
-      setForm({ title: '', type: 'video', is_published: true, order_index: 0 })
-      if (fileInput) fileInput.value = ''
-      toast.success('Material uploaded successfully!')
-    } catch {
+      setForm({ title: '', type: 'video', content: '', is_published: true, order_index: 0 })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      toast.success('Material saved successfully!')
+    } catch (err) {
+      console.error(err)
       toast.error('Failed to save material')
     }
   }
 
-  return (
-    <div className="p-6 max-w-5xl">
+  const isNoteType = form.type === 'note'
 
-      {/* Header */}
+  return (
+    <div className="p-4 md:p-6 max-w-5xl">
       <div className="mb-6">
-        <h2 className="text-xl font-medium">Upload material</h2>
-        <p className="text-gray-500 text-sm mt-1">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">Upload material</h2>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
           Add videos, PDFs, notes and slides to your courses
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Upload form */}
         <div>
@@ -149,23 +165,18 @@ export default function AdminUpload() {
 
             {/* Step 1 — Select course */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 1. Select course
               </label>
               <select
                 className="input"
                 value={selectedCourse}
-                onChange={(e) => {
-                  setSelectedCourse(e.target.value)
-                  setSelectedChapter('')
-                }}
+                onChange={(e) => { setSelectedCourse(e.target.value); setSelectedChapter('') }}
                 required
               >
                 <option value="">Choose a course...</option>
                 {(courses || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.title}</option>
                 ))}
               </select>
             </div>
@@ -174,7 +185,7 @@ export default function AdminUpload() {
             {selectedCourse && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     2. Select chapter
                   </label>
                   <button
@@ -213,9 +224,7 @@ export default function AdminUpload() {
                 >
                   <option value="">Choose a chapter...</option>
                   {(chapters || []).map((ch) => (
-                    <option key={ch.id} value={ch.id}>
-                      {ch.title}
-                    </option>
+                    <option key={ch.id} value={ch.id}>{ch.title}</option>
                   ))}
                 </select>
               </div>
@@ -225,7 +234,7 @@ export default function AdminUpload() {
             {selectedChapter && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     3. Material title
                   </label>
                   <input
@@ -239,7 +248,7 @@ export default function AdminUpload() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Resource type
                     </label>
                     <select
@@ -247,14 +256,14 @@ export default function AdminUpload() {
                       value={form.type}
                       onChange={(e) => setForm({ ...form, type: e.target.value })}
                     >
-                      <option value="video">Video</option>
-                      <option value="pdf">PDF</option>
-                      <option value="note">Notes</option>
-                      <option value="slide">Slide deck</option>
+                      <option value="video">📹 Video</option>
+                      <option value="pdf">📄 PDF</option>
+                      <option value="note">📝 Notes</option>
+                      <option value="slide">📊 Slide deck</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Order
                     </label>
                     <input
@@ -267,49 +276,122 @@ export default function AdminUpload() {
                   </div>
                 </div>
 
-                {/* File upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Upload file
-                  </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary-300 transition-colors">
-                    <div className="text-3xl mb-2">📁</div>
-                    <p className="text-sm text-gray-500 mb-1">
-                      Drag & drop or click to browse
-                    </p>
-                    <p className="text-xs text-gray-400 mb-3">
-                      MP4, PDF, DOCX, PPTX — max 500MB
-                    </p>
-                    <input
-                      type="file"
-                      id="file-input"
-                      className="hidden"
-                      accept="video/*,.pdf,.docx,.pptx"
-                    />
-                    <label
-                      htmlFor="file-input"
-                      className="btn-outline text-xs px-4 py-1.5 cursor-pointer"
-                    >
-                      Browse files
+                {/* Note mode toggle */}
+                {isNoteType && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Note input method
                     </label>
-                  </div>
-
-                  {/* Upload progress */}
-                  {uploading && (
-                    <div className="mt-2">
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Uploading...</span>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className="bg-primary-600 h-2 rounded-full transition-all"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNoteMode('write')}
+                        className={`border-2 rounded-xl p-3 text-center transition-all ${
+                          noteMode === 'write'
+                            ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        <span className="block text-2xl mb-1">✍️</span>
+                        <span className="text-xs font-medium">Write notes</span>
+                        <span className="block text-xs text-gray-400 mt-0.5">Type directly</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNoteMode('upload')}
+                        className={`border-2 rounded-xl p-3 text-center transition-all ${
+                          noteMode === 'upload'
+                            ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        <span className="block text-2xl mb-1">📁</span>
+                        <span className="text-xs font-medium">Upload file</span>
+                        <span className="block text-xs text-gray-400 mt-0.5">PDF or DOCX</span>
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Write notes textarea */}
+                {isNoteType && noteMode === 'write' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Note content
+                    </label>
+                    <textarea
+                      className="input resize-none font-mono text-xs"
+                      rows={12}
+                      placeholder="Write your notes here...
+
+You can use:
+- Bullet points
+- Numbered lists
+- Headings with caps
+- Any formatting you like"
+                      value={form.content}
+                      onChange={(e) => setForm({ ...form, content: e.target.value })}
+                      required
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>{form.content.length} characters</span>
+                      <span>{form.content.split('\n').length} lines</span>
+                    </div>
+                  </div>
+                ) : (
+                  /* File upload */
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Upload file
+                    </label>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center hover:border-primary-300 transition-colors">
+                      <div className="text-3xl mb-2">📁</div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Drag & drop or click to browse
+                      </p>
+                      <p className="text-xs text-gray-400 mb-3">
+                        {form.type === 'video' ? 'MP4, MOV, AVI — max 500MB' :
+                         form.type === 'pdf'   ? 'PDF — max 50MB' :
+                         form.type === 'note'  ? 'PDF, DOCX — max 20MB' :
+                         'PPTX, PDF — max 50MB'}
+                      </p>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept={
+                          form.type === 'video' ? 'video/*' :
+                          form.type === 'pdf'   ? '.pdf' :
+                          form.type === 'note'  ? '.pdf,.docx,.doc' :
+                          '.pptx,.pdf'
+                        }
+                      />
+                      <label
+                        htmlFor="file-input"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn-outline text-xs px-4 py-1.5 cursor-pointer"
+                      >
+                        Browse files
+                      </label>
+                    </div>
+
+                    {/* Upload progress */}
+                    {uploading && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-primary-600 h-2 rounded-full transition-all"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2">
                   <input
@@ -318,7 +400,7 @@ export default function AdminUpload() {
                     checked={form.is_published}
                     onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
                   />
-                  <label htmlFor="publish" className="text-sm text-gray-700">
+                  <label htmlFor="publish" className="text-sm text-gray-700 dark:text-gray-300">
                     Publish immediately
                   </label>
                 </div>
@@ -328,7 +410,11 @@ export default function AdminUpload() {
                   className="btn-primary w-full py-2.5"
                   disabled={uploading}
                 >
-                  {uploading ? `Uploading ${uploadProgress}%...` : 'Upload & save material'}
+                  {uploading
+                    ? `Uploading ${uploadProgress}%...`
+                    : isNoteType && noteMode === 'write'
+                    ? 'Save notes'
+                    : 'Upload & save material'}
                 </button>
               </>
             )}
@@ -337,14 +423,14 @@ export default function AdminUpload() {
 
         {/* Recently uploaded */}
         <div>
-          <h3 className="text-base font-medium text-gray-900 mb-3">
+          <h3 className="text-base font-medium text-gray-900 dark:text-white mb-3">
             {selectedChapter ? 'Materials in this chapter' : 'Select a chapter to see materials'}
           </h3>
 
           {recentResources?.length ? (
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">Title</th>
                     <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">Type</th>
@@ -353,22 +439,33 @@ export default function AdminUpload() {
                 </thead>
                 <tbody>
                   {recentResources.map((r) => (
-                    <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-2 truncate max-w-40">
-                        <div className="font-medium text-gray-900 truncate">
+                        <div className="font-medium text-gray-900 dark:text-white truncate flex items-center gap-1">
+                          <span>
+                            {r.type === 'video' ? '▶️' :
+                             r.type === 'pdf'   ? '📄' :
+                             r.type === 'note'  ? '📝' : '📊'}
+                          </span>
                           {r.title}
                         </div>
+                        {r.note_content && (
+                          <div className="text-xs text-gray-400 truncate mt-0.5">
+                            {r.note_content.substring(0, 50)}...
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full capitalize">
                           {r.type}
+                          {r.note_content ? ' (written)' : ''}
                         </span>
                       </td>
                       <td className="px-4 py-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           r.is_published
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-amber-100 text-amber-700'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                         }`}>
                           {r.is_published ? 'Live' : 'Draft'}
                         </span>
@@ -381,10 +478,8 @@ export default function AdminUpload() {
           ) : (
             <div className="card text-center py-10">
               <div className="text-4xl mb-3">📂</div>
-              <p className="text-gray-400 text-sm">
-                {selectedChapter
-                  ? 'No materials in this chapter yet'
-                  : 'Select a course and chapter first'}
+              <p className="text-gray-400 dark:text-gray-500 text-sm">
+                {selectedChapter ? 'No materials in this chapter yet' : 'Select a course and chapter first'}
               </p>
             </div>
           )}

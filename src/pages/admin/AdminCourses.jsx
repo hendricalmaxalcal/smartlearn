@@ -8,6 +8,8 @@ import {
   updateCourse,
   deleteCourse,
 } from '../../services/firestore'
+import { getDocs, collection, query, orderBy } from 'firebase/firestore'
+import { db } from '../../firebase'
 
 export default function AdminCourses() {
   const { user } = useSelector((s) => s.auth)
@@ -25,7 +27,13 @@ export default function AdminCourses() {
 
   const { data: courses, isLoading } = useQuery({
     queryKey: ['admin-courses'],
-    queryFn: () => getCourses({}),
+    queryFn: async () => {
+      // Fetch ALL courses including drafts
+      const snapshot = await getDocs(
+        query(collection(db, 'courses'), orderBy('created_at', 'desc'))
+      )
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+    },
     retry: false,
   })
 
@@ -85,16 +93,19 @@ export default function AdminCourses() {
       is_published: course.is_published || false,
     })
     setShowCreate(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-medium">Course management</h2>
-          <p className="text-gray-500 text-sm mt-1">
+          <h2 className="text-xl font-medium text-gray-900 dark:text-white">
+            Course management
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {courses?.length || 0} courses total
           </p>
         </div>
@@ -109,12 +120,12 @@ export default function AdminCourses() {
       {/* Create / Edit form */}
       {showCreate && (
         <div className="card mb-6">
-          <h3 className="font-medium text-gray-900 mb-4">
+          <h3 className="font-medium text-gray-900 dark:text-white mb-4">
             {editCourse ? 'Edit course' : 'Create new course'}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Course title
               </label>
               <input
@@ -127,7 +138,7 @@ export default function AdminCourses() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
@@ -141,7 +152,7 @@ export default function AdminCourses() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Form level
                 </label>
                 <select
@@ -155,7 +166,7 @@ export default function AdminCourses() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Stream
                 </label>
                 <select
@@ -170,8 +181,8 @@ export default function AdminCourses() {
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <div className="flex items-center gap-6 flex-wrap">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.is_premium}
@@ -179,7 +190,7 @@ export default function AdminCourses() {
                 />
                 Premium course
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.is_published}
@@ -202,7 +213,7 @@ export default function AdminCourses() {
         </div>
       )}
 
-      {/* Courses table */}
+      {/* Courses table with horizontal scroll on mobile */}
       {isLoading ? (
         <div className="space-y-3">
           {[1,2,3].map((i) => (
@@ -211,73 +222,83 @@ export default function AdminCourses() {
         </div>
       ) : courses?.length ? (
         <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Course</th>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Stream</th>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Form</th>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Type</th>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Status</th>
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {courses.map((course) => (
-                <tr key={course.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{course.title}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                      {course.description}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge-${course.stream}`}>{course.stream}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {course.form_level?.replace('form', 'Form ')}
-                  </td>
-                  <td className="px-4 py-3">
-                    {course.is_premium ? (
-                      <span className="badge-premium">Premium</span>
-                    ) : (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Free</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      course.is_published
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {course.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startEdit(course)}
-                        className="text-xs text-primary-600 hover:bg-primary-50 px-2 py-1 rounded-lg"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => remove.mutate(course.id)}
-                        className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Course</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Stream</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Form</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Type</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {courses.map((course) => (
+                  <tr key={course.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-3 min-w-[180px]">
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {course.title}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                        {course.description}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`badge-${course.stream}`}>{course.stream}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                      {course.form_level?.replace('form', 'Form ')}
+                    </td>
+                    <td className="px-4 py-3">
+                      {course.is_premium ? (
+                        <span className="badge-premium">Premium</span>
+                      ) : (
+                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+                          Free
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        course.is_published
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        {course.is_published ? 'Published' : 'Draft'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 whitespace-nowrap">
+                        <button
+                          onClick={() => startEdit(course)}
+                          className="text-xs text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 px-2 py-1 rounded-lg"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete "${course.title}"?`)) {
+                              remove.mutate(course.id)
+                            }
+                          }}
+                          className="text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded-lg"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="text-center py-16">
           <div className="text-4xl mb-3">📚</div>
-          <p className="text-gray-500 mb-4">No courses yet</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">No courses yet</p>
           <button
             onClick={() => setShowCreate(true)}
             className="btn-primary"

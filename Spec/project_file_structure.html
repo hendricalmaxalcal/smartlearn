@@ -1,0 +1,161 @@
+
+<style>
+.tree{font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--color-text-primary);padding:0}
+.tree-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:4px 0}
+.tree-col h4{font-size:13px;font-weight:500;margin:0 0 10px;color:var(--color-text-primary);font-family:var(--font-sans)}
+.folder{color:var(--color-text-secondary)}
+.file{color:var(--color-text-primary)}
+.file.green{color:#3B6D11}
+.file.blue{color:#185FA5}
+.file.amber{color:#854F0B}
+.file.purple{color:#534AB7}
+.indent1{padding-left:16px}
+.indent2{padding-left:32px}
+.indent3{padding-left:48px}
+.indent4{padding-left:64px}
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.badge{font-size:11px;padding:3px 10px;border-radius:20px}
+</style>
+
+<div class="badge-row">
+  <span class="badge" style="background:#EEEDFE;color:#3C3489">React 18 + Vite</span>
+  <span class="badge" style="background:#E1F5EE;color:#085041">Node.js + Express</span>
+  <span class="badge" style="background:#FAEEDA;color:#633806">PostgreSQL</span>
+  <span class="badge" style="background:#E6F1FB;color:#0C447C">JWT Auth</span>
+  <span class="badge" style="background:#EAF3DE;color:#27500A">Socket.IO</span>
+  <span class="badge" style="background:#FAECE7;color:#712B13">Tailwind CSS</span>
+</div>
+
+<div class="tree-wrap">
+<div>
+<h4>Frontend — <code>educonnect-client/</code></h4>
+<div class="tree">
+<div class="folder">educonnect-client/</div>
+<div class="indent1 folder">├── public/</div>
+<div class="indent2 file green">│   └── favicon.svg</div>
+<div class="indent1 folder">├── src/</div>
+<div class="indent2 folder">│   ├── assets/</div>
+<div class="indent2 folder">│   ├── components/</div>
+<div class="indent3 folder">│   │   ├── common/</div>
+<div class="indent4 file blue">│   │   │   ├── Navbar.jsx</div>
+<div class="indent4 file blue">│   │   │   ├── Footer.jsx</div>
+<div class="indent4 file blue">│   │   │   ├── Button.jsx</div>
+<div class="indent4 file blue">│   │   │   ├── Modal.jsx</div>
+<div class="indent4 file blue">│   │   │   └── Badge.jsx</div>
+<div class="indent3 folder">│   │   ├── layout/</div>
+<div class="indent4 file blue">│   │   │   ├── PublicLayout.jsx</div>
+<div class="indent4 file blue">│   │   │   ├── AppLayout.jsx</div>
+<div class="indent4 file blue">│   │   │   └── AdminLayout.jsx</div>
+<div class="indent3 folder">│   │   └── guards/</div>
+<div class="indent4 file blue">│   │       ├── PrivateRoute.jsx</div>
+<div class="indent4 file blue">│   │       └── AdminRoute.jsx</div>
+<div class="indent2 folder">│   ├── pages/</div>
+<div class="indent3 folder">│   │   ├── public/</div>
+<div class="indent4 file purple">│   │   │   ├── HomePage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── LoginPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── RegisterPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── PricingPage.jsx</div>
+<div class="indent4 file purple">│   │   │   └── CourseCatalogPage.jsx</div>
+<div class="indent3 folder">│   │   ├── app/</div>
+<div class="indent4 file purple">│   │   │   ├── DashboardPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── MyCoursesPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── CourseViewerPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── SocialFeedPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── StudyGroupsPage.jsx</div>
+<div class="indent4 file purple">│   │   │   ├── MessagingPage.jsx</div>
+<div class="indent4 file purple">│   │   │   └── EventsPage.jsx</div>
+<div class="indent3 folder">│   │   └── admin/</div>
+<div class="indent4 file amber">│   │       ├── AdminDashboard.jsx</div>
+<div class="indent4 file amber">│   │       ├── AdminUsers.jsx</div>
+<div class="indent4 file amber">│   │       ├── AdminCourses.jsx</div>
+<div class="indent4 file amber">│   │       ├── AdminUpload.jsx</div>
+<div class="indent4 file amber">│   │       ├── AdminSubscriptions.jsx</div>
+<div class="indent4 file amber">│   │       └── AdminAnnouncements.jsx</div>
+<div class="indent2 folder">│   ├── store/</div>
+<div class="indent3 file green">│   │   ├── index.js</div>
+<div class="indent3 file green">│   │   ├── authSlice.js</div>
+<div class="indent3 file green">│   │   └── uiSlice.js</div>
+<div class="indent2 folder">│   ├── hooks/</div>
+<div class="indent3 file green">│   │   ├── useAuth.js</div>
+<div class="indent3 file green">│   │   └── useSocket.js</div>
+<div class="indent2 folder">│   ├── services/</div>
+<div class="indent3 file green">│   │   ├── api.js</div>
+<div class="indent3 file green">│   │   ├── authService.js</div>
+<div class="indent3 file green">│   │   ├── courseService.js</div>
+<div class="indent3 file green">│   │   └── uploadService.js</div>
+<div class="indent2 folder">│   ├── utils/</div>
+<div class="indent3 file green">│   │   └── helpers.js</div>
+<div class="indent2 file blue">│   ├── App.jsx</div>
+<div class="indent2 file blue">│   └── main.jsx</div>
+<div class="indent1 file">├── .env</div>
+<div class="indent1 file">├── index.html</div>
+<div class="indent1 file">├── tailwind.config.js</div>
+<div class="indent1 file">├── vite.config.js</div>
+<div class="indent1 file">└── package.json</div>
+</div>
+</div>
+
+<div>
+<h4>Backend — <code>educonnect-server/</code></h4>
+<div class="tree">
+<div class="folder">educonnect-server/</div>
+<div class="indent1 folder">├── src/</div>
+<div class="indent2 folder">│   ├── config/</div>
+<div class="indent3 file green">│   │   ├── db.js</div>
+<div class="indent3 file green">│   │   └── env.js</div>
+<div class="indent2 folder">│   ├── middleware/</div>
+<div class="indent3 file blue">│   │   ├── auth.js</div>
+<div class="indent3 file blue">│   │   ├── adminOnly.js</div>
+<div class="indent3 file blue">│   │   ├── upload.js</div>
+<div class="indent3 file blue">│   │   └── errorHandler.js</div>
+<div class="indent2 folder">│   ├── routes/</div>
+<div class="indent3 file purple">│   │   ├── auth.routes.js</div>
+<div class="indent3 file purple">│   │   ├── courses.routes.js</div>
+<div class="indent3 file purple">│   │   ├── resources.routes.js</div>
+<div class="indent3 file purple">│   │   ├── users.routes.js</div>
+<div class="indent3 file purple">│   │   ├── subscriptions.routes.js</div>
+<div class="indent3 file purple">│   │   ├── social.routes.js</div>
+<div class="indent3 file purple">│   │   ├── messages.routes.js</div>
+<div class="indent3 file purple">│   │   ├── groups.routes.js</div>
+<div class="indent3 file purple">│   │   ├── events.routes.js</div>
+<div class="indent3 file purple">│   │   └── admin.routes.js</div>
+<div class="indent2 folder">│   ├── controllers/</div>
+<div class="indent3 file amber">│   │   ├── auth.controller.js</div>
+<div class="indent3 file amber">│   │   ├── courses.controller.js</div>
+<div class="indent3 file amber">│   │   ├── resources.controller.js</div>
+<div class="indent3 file amber">│   │   ├── users.controller.js</div>
+<div class="indent3 file amber">│   │   ├── subscriptions.controller.js</div>
+<div class="indent3 file amber">│   │   ├── social.controller.js</div>
+<div class="indent3 file amber">│   │   ├── messages.controller.js</div>
+<div class="indent3 file amber">│   │   ├── groups.controller.js</div>
+<div class="indent3 file amber">│   │   ├── events.controller.js</div>
+<div class="indent3 file amber">│   │   └── admin.controller.js</div>
+<div class="indent2 folder">│   ├── db/</div>
+<div class="indent3 file green">│   │   ├── migrations/</div>
+<div class="indent3 file green">│   │   │   └── 001_initial_schema.sql</div>
+<div class="indent3 file green">│   │   └── seeds/</div>
+<div class="indent3 file green">│   │       └── seed.js</div>
+<div class="indent2 folder">│   ├── socket/</div>
+<div class="indent3 file blue">│   │   └── socket.js</div>
+<div class="indent2 folder">│   ├── utils/</div>
+<div class="indent3 file green">│   │   ├── jwt.js</div>
+<div class="indent3 file green">│   │   ├── email.js</div>
+<div class="indent3 file green">│   │   └── s3.js</div>
+<div class="indent2 file">│   └── app.js</div>
+<div class="indent1 file">├── server.js</div>
+<div class="indent1 file">├── .env</div>
+<div class="indent1 file">└── package.json</div>
+</div>
+
+<div style="margin-top:20px">
+<h4>Root — <code>educonnect/</code></h4>
+<div class="tree">
+<div class="folder">educonnect/</div>
+<div class="indent1 folder">├── educonnect-client/</div>
+<div class="indent1 folder">├── educonnect-server/</div>
+<div class="indent1 file green">├── docker-compose.yml</div>
+<div class="indent1 file green">└── README.md</div>
+</div>
+</div>
+</div>
+</div>

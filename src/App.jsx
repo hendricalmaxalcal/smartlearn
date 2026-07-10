@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { PrivateRoute, AdminRoute } from './components/guards/PrivateRoute'
+import { PrivateRoute, AdminRoute, AdminOnlyRoute } from './components/guards/PrivateRoute'
 import InstallPWA from './components/common/InstallPWA'
 
 import PublicLayout   from './components/layout/PublicLayout'
@@ -70,12 +70,13 @@ export default function App() {
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard"     element={<AdminDashboard />} />
-          <Route path="users"         element={<AdminUsers />} />
           <Route path="courses"       element={<AdminCourses />} />
           <Route path="upload"        element={<AdminUpload />} />
-          <Route path="subscriptions" element={<AdminSubscriptions />} />
-          {/* <Route path="events"        element={<EventsPage />} /> */}
           <Route path="announcements" element={<AdminAnnouncements />} />
+          
+          {/* Admin only — teachers cannot access these */}
+          <Route path="users"         element={<AdminOnlyRoute><AdminUsers /></AdminOnlyRoute>} />
+          <Route path="subscriptions" element={<AdminOnlyRoute><AdminSubscriptions /></AdminOnlyRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

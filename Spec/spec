@@ -1,0 +1,79 @@
+src/
+├── main.jsx
+├── App.jsx
+├── index.css
+├── store/
+│   ├── index.js
+│   └── authSlice.js
+├── services/
+│   └── api.js
+├── components/
+│   ├── guards/
+│   │   └── PrivateRoute.jsx
+│   └── layout/
+│       ├── PublicLayout.jsx
+│       ├── AppLayout.jsx
+│       └── AdminLayout.jsx
+└── pages/
+    ├── public/
+    │   ├── HomePage.jsx
+    │   ├── LoginPage.jsx
+    │   ├── RegisterPage.jsx
+    │   └── PricingPage.jsx
+    ├── app/
+    │   ├── DashboardPage.jsx
+    │   └── ... (more later)
+    └── admin/
+        ├── AdminDashboard.jsx
+        ├── AdminUpload.jsx
+        └── ... (more later)
+
+
+ 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
+ 
+
+ Roles in SmartLearn
+
+🎓 Student
+    Access student dashboard with enrolled courses and events
+    Browse and enroll in courses
+    Social feed — create posts, like, comment
+    Study groups — create, join, leave, chat, reply, send images
+    Direct messaging with other users
+    View announcements
+    View events and RSVP
+    Cannot access admin panel
+
+
+👨‍🏫 Teacher
+    Access teacher dashboard with their courses and student stats
+    Everything students can do
+
+    Access admin panel with:
+        Upload material (videos, PDFs, notes)
+        Manage their courses
+        Post announcements
+        View social feed
+
+
+    Cannot see:
+        Users management
+        Subscriptions management
+
+
+
+
+⚙️ Admin
+    Full access to everything
+    Access admin panel with:
+
+    Dashboard with full KPIs
+        Upload material
+        Manage all courses
+        Manage all users (change roles, delete)
+        Post announcements
+        Manage subscriptions
+        View social feed
+
+    Auto-added to all study groups created by students
+    Can delete any group or message

@@ -7,6 +7,7 @@ import { getAdminStats } from '../../services/firestore'
 
 export default function AdminDashboard() {
   const { user } = useSelector((s) => s.auth)
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-stats'],
@@ -14,13 +15,60 @@ export default function AdminDashboard() {
     retry: false,
   })
 
+  const quickActions = [
+    {
+      to: '/admin/upload',
+      icon: '📤',
+      label: 'Upload material',
+      desc: 'Add new videos, PDFs and notes',
+      color: 'bg-primary-50',
+    },
+    {
+      to: '/admin/courses',
+      icon: '📚',
+      label: 'Manage courses',
+      desc: 'Create, edit and publish',
+      color: 'bg-green-50',
+    },
+    {
+      to: '/admin/announcements',
+      icon: '📢',
+      label: 'Announcements',
+      desc: 'Post to students',
+      color: 'bg-amber-50',
+    },
+    {
+      to: '/app/feed',
+      icon: '💬',
+      label: 'Social feed',
+      desc: 'Monitor student activity',
+      color: 'bg-red-50',
+    },
+    ...(isAdmin ? [
+      {
+        to: '/admin/users',
+        icon: '👥',
+        label: 'Manage users',
+        desc: 'View and manage all users',
+        color: 'bg-blue-50',
+      },
+      {
+        to: '/admin/subscriptions',
+        icon: '💳',
+        label: 'Subscriptions',
+        desc: 'Manage plans and pricing',
+        color: 'bg-purple-50',
+      },
+    ] : []),
+  ]
+
   return (
     <div className="p-4 md:p-6">
 
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-xl font-medium text-gray-900">Dashboard</h2>
-        <p className="text-gray-500 text-sm mt-1">
+        <h2 className="text-xl font-medium text-gray-900 dark:text-white">Dashboard</h2>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
           Welcome back, {user?.full_name?.split(' ')[0]} 👋
         </p>
       </div>
@@ -61,8 +109,8 @@ export default function AdminDashboard() {
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${s.color}`}>
               {s.icon}
             </div>
-            <div className="text-2xl font-medium text-gray-900">{s.value}</div>
-            <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+            <div className="text-2xl font-medium text-gray-900 dark:text-white">{s.value}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.label}</div>
             <div className="text-xs text-gray-400 mt-0.5">{s.delta}</div>
           </div>
         ))}
@@ -70,52 +118,9 @@ export default function AdminDashboard() {
 
       {/* Quick actions */}
       <div className="mb-8">
-        <h3 className="text-base font-medium text-gray-900 mb-4">Quick actions</h3>
+        <h3 className="text-base font-medium text-gray-900 dark:text-white mb-4">Quick actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-          {[
-            {
-              to: '/admin/upload',
-              icon: '📤',
-              label: 'Upload material',
-              desc: 'Add new videos, PDFs and notes',
-              color: 'bg-primary-50',
-            },
-            {
-              to: '/admin/courses',
-              icon: '📚',
-              label: 'Manage courses',
-              desc: 'Create, edit and publish',
-              color: 'bg-green-50',
-            },
-            {
-              to: '/admin/users',
-              icon: '👥',
-              label: 'Manage users',
-              desc: 'View and manage all users',
-              color: 'bg-blue-50',
-            },
-            {
-              to: '/admin/announcements',
-              icon: '📢',
-              label: 'Announcements',
-              desc: 'Post to students',
-              color: 'bg-amber-50',
-            },
-            {
-              to: '/admin/subscriptions',
-              icon: '💳',
-              label: 'Subscriptions',
-              desc: 'Manage plans and pricing',
-              color: 'bg-purple-50',
-            },
-            {
-              to: '/app/feed',
-              icon: '💬',
-              label: 'Social feed',
-              desc: 'Monitor student activity',
-              color: 'bg-red-50',
-            },
-          ].map((item) => (
+          {quickActions.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -124,10 +129,10 @@ export default function AdminDashboard() {
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-3 ${item.color}`}>
                 {item.icon}
               </div>
-              <div className="font-medium text-gray-900 text-sm mb-1">
+              <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
                 {item.label}
               </div>
-              <div className="text-xs text-gray-500 leading-relaxed hidden md:block">
+              <div className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed hidden md:block">
                 {item.desc}
               </div>
             </Link>
@@ -139,17 +144,19 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-medium text-gray-900">Recent users</h3>
-            <Link to="/admin/users" className="text-sm text-primary-600 hover:underline">
-              View all
-            </Link>
+            <h3 className="text-base font-medium text-gray-900 dark:text-white">Recent users</h3>
+            {isAdmin && (
+              <Link to="/admin/users" className="text-sm text-primary-600 hover:underline">
+                View all
+              </Link>
+            )}
           </div>
           <RecentUsers />
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-medium text-gray-900">Recent courses</h3>
+            <h3 className="text-base font-medium text-gray-900 dark:text-white">Recent courses</h3>
             <Link to="/admin/courses" className="text-sm text-primary-600 hover:underline">
               View all
             </Link>

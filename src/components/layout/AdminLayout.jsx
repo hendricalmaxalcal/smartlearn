@@ -4,20 +4,24 @@ import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../store/authSlice'
 import ThemeToggle from '../common/ThemeToggle'
 
-const navItems = [
-  { to: '/admin/dashboard',     label: 'Dashboard',       icon: '🏠' },
-  { to: '/admin/upload',        label: 'Upload material', icon: '📤' },
-  { to: '/admin/courses',       label: 'Courses',         icon: '📚' },
-  { to: '/admin/users',         label: 'Users',           icon: '👥' },
-  { to: '/admin/subscriptions', label: 'Subscriptions',   icon: '💳' },
-  { to: '/admin/announcements', label: 'Announcements',   icon: '📢' },
-]
-
 export default function AdminLayout() {
   const { user } = useSelector((s) => s.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+
+  const navItems = [
+    { to: '/admin/dashboard',     label: 'Dashboard',       icon: '🏠' },
+    { to: '/admin/upload',        label: 'Upload material', icon: '📤' },
+    { to: '/admin/courses',       label: 'Courses',         icon: '📚' },
+    { to: '/admin/announcements', label: 'Announcements',   icon: '📢' },
+    ...(isAdmin ? [
+      { to: '/admin/users',         label: 'Users',         icon: '👥' },
+      { to: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
+    ] : []),
+  ]
 
   const handleLogout = () => {
     dispatch(logout())
@@ -27,10 +31,13 @@ export default function AdminLayout() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 dark:bg-gray-900">
 
+      {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <span className="font-medium text-gray-900 dark:text-white">
           <span className="text-primary-600">Smart</span>Learn
-          <span className="ml-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">Admin</span>
+          <span className="ml-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+            {isAdmin ? 'Admin' : 'Teacher'}
+          </span>
         </span>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
@@ -40,6 +47,7 @@ export default function AdminLayout() {
         </button>
       </div>
 
+      {/* Sidebar */}
       <aside className={`
         md:w-56 md:flex md:flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
         ${menuOpen ? 'flex flex-col' : 'hidden'}
@@ -50,7 +58,7 @@ export default function AdminLayout() {
             <span className="text-primary-600">Smart</span>Learn
           </span>
           <span className="ml-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-            Admin
+            {isAdmin ? 'Admin' : 'Teacher'}
           </span>
         </div>
 

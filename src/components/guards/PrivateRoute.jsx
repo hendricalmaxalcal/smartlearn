@@ -27,7 +27,26 @@ export const AdminRoute = ({ children }) => {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  if (!['admin', 'teacher'].includes(user.role)) {
+  if (!['admin', 'teacher'].includes(user.role?.toLowerCase())) {
+    return <Navigate to="/app/dashboard" replace />
+  }
+
+  return children
+}
+
+export const AdminOnlyRoute = ({ children }) => {
+  const { user, initialized } = useSelector((s) => s.auth)
+
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-400">
+        Loading...
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role?.toLowerCase() !== 'admin') {
     return <Navigate to="/app/dashboard" replace />
   }
 
@@ -46,7 +65,7 @@ export const TeacherRoute = ({ children }) => {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  if (!['admin', 'teacher'].includes(user.role)) {
+  if (!['admin', 'teacher'].includes(user.role?.toLowerCase())) {
     return <Navigate to="/app/dashboard" replace />
   }
 
